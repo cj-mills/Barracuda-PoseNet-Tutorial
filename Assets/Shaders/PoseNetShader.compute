@@ -1,0 +1,41 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel PreprocessResNet
+#pragma kernel ScaleInputImage
+#pragma kernel FlipImage
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<half4> Result;
+Texture2D<half4> InputImage;
+
+// The height of the InputImage
+int height;
+// The width of the InputImage
+int width;
+// Flipped (x,y) pixel coordinates
+half2 flip;
+
+[numthreads(8,8,1)]
+void PreprocessResNet(uint3 id : SV_DispatchThreadID)
+{
+    Result[id.xy] = half4((InputImage[id.xy].x * 255.0h) + (-123.15h),
+        (InputImage[id.xy].y * 255.0h) + (-115.90h),
+        (InputImage[id.xy].z * 255.0h) + (-103.06h), 1.0h);
+}
+
+[numthreads(8, 8, 1)]
+void ScaleInputImage(uint3 id : SV_DispatchThreadID)
+{
+    Result[id.xy] = half4((InputImage[id.xy].x / 255.0h),
+        (InputImage[id.xy].y / 255.0h),
+        (InputImage[id.xy].z / 255.0h), 1.0h);
+}
+
+[numthreads(8, 8, 1)]
+void FlipImage(uint3 id : SV_DispatchThreadID)
+{
+    // Calculate the flipped pixel coordinates
+    flip = half2(height, width) - id.xy;
+    flip[1] = id.y;
+    Result[id.xy] = half4(InputImage[flip].x, InputImage[flip].y, InputImage[flip].z, 1.0h);
+}
