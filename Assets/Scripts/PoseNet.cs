@@ -10,7 +10,6 @@ public class PoseNet : MonoBehaviour
         ResNet50
     }
 
-
     [Tooltip("The ComputeShader that will perform the model-specific preprocessing")]
     public ComputeShader posenetShader;
 
@@ -41,6 +40,7 @@ public class PoseNet : MonoBehaviour
     [Tooltip("The screen for viewing preprocessed images")]
     public GameObject inputScreen;
 
+    [Tooltip("The model architecture used")]
     public ModelType modelType = ModelType.ResNet50;
 
     [Tooltip("The MobileNet model asset file to use when performing inference")]
@@ -66,10 +66,10 @@ public class PoseNet : MonoBehaviour
     private IWorker engine;
 
     // The name for the heatmap layer in the model asset
-    private string heatmapLayer = "float_heatmaps";
+    private string heatmapLayer;
 
     // The name for the offsets layer in the model asset
-    private string offsetsLayer = "float_short_offsets";
+    private string offsetsLayer;
 
     // The name for the Sigmoid layer that returns the heatmap predictions
     private string predictionLayer = "heatmap_predictions";
@@ -91,12 +91,13 @@ public class PoseNet : MonoBehaviour
     private int videoWidth;
 
     private RenderTexture videoTexture;
-    RenderTexture rTex;
-    Transform videoScreen;
+    private RenderTexture rTex;
 
-    string preProcessFuncName;
+    private Transform videoScreen;
 
-    Tensor input;
+    private string preProcessFuncName;
+
+    private Tensor input;
 
     
 
@@ -139,8 +140,6 @@ public class PoseNet : MonoBehaviour
             videoWidth = (int)videoPlayer.GetComponent<VideoPlayer>().width;
         }
 
-        // Release the current videoTexture
-        //videoTexture.Release();
         // Create a new videoTexture using the current video dimensions
         videoTexture = RenderTexture.GetTemporary(videoWidth, videoHeight, 24, RenderTextureFormat.ARGBHalf);
 
@@ -171,7 +170,6 @@ public class PoseNet : MonoBehaviour
 
             minConfidence = 80;
 
-
             // Compile the model asset into an object oriented representation
             m_RunTimeModel = ModelLoader.Load(resnetModelAsset);
             preProcessFuncName = "PreprocessResNet";
@@ -183,12 +181,10 @@ public class PoseNet : MonoBehaviour
 
             minConfidence = 65;
 
-
             // Compile the model asset into an object oriented representation
             m_RunTimeModel = ModelLoader.Load(mobileNetModelAsset);
             preProcessFuncName = "PreprocessMobileNet";
         }
-
 
         // Create a model builder to modify the m_RunTimeModel
         var modelBuilder = new ModelBuilder(m_RunTimeModel);
@@ -259,8 +255,6 @@ public class PoseNet : MonoBehaviour
                                tensor_array);
         }
 
-        
-
         // Execute neural network with the provided input
         engine.Execute(input);
 
@@ -308,30 +302,32 @@ public class PoseNet : MonoBehaviour
         RenderTexture.ReleaseTemporary(result);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="tensor"></param>
     private void PreprocessMobilenet(float[] tensor)
     {
         for (int i = 0; i < tensor.Length; i++)
         {
             tensor[i] = (float)(2.0f * tensor[i] / 1.0f) - 1.0f;
         }
-
-        //return tensor;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="tensor"></param>
     private void PreprocessResnet(float[] tensor)
     {
         float[] imagenetMean = new float[] { -123.15f, -115.90f, -103.06f };
 
         for (int i = 0; i < tensor.Length / 3; i++)
         {
-
             tensor[i * 3 + 0] = (float)tensor[i * 3 + 0] * 255f + imagenetMean[0];
             tensor[i * 3 + 1] = (float)tensor[i * 3 + 1] * 255f + imagenetMean[1];
             tensor[i * 3 + 2] = (float)tensor[i * 3 + 2] * 255f + imagenetMean[2];
-
         }
-
-        //return tensor;
     }
 
     /// <summary>
