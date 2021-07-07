@@ -827,9 +827,12 @@ MonoBehaviour:
   imageWidth: 480
   displayInput: 0
   useWebcam: 0
-  inputScreen: {fileID: 0}
-  inputTexture: {fileID: 8400000, guid: 9ce5d245310d4ca4c97d8ee96fec53f5, type: 2}
-  modelAsset: {fileID: 5022602860645237092, guid: c941343b78633004a97904ec343ea2ea,
+  useGPU: 1
+  inputScreen: {fileID: 613877718}
+  modelType: 1
+  mobileNetModelAsset: {fileID: 5022602860645237092, guid: e3ca9630dbbfd8c458d4144a509b1f81,
+    type: 3}
+  resnetModelAsset: {fileID: 5022602860645237092, guid: c941343b78633004a97904ec343ea2ea,
     type: 3}
   workerType: 256
   minConfidence: 80
