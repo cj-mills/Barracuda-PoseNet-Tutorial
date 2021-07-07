@@ -1,7 +1,6 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel PreprocessResNet
-#pragma kernel ScaleInputImage
-#pragma kernel FlipImage
+#pragma kernel PreprocessMobileNet
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -23,19 +22,13 @@ void PreprocessResNet(uint3 id : SV_DispatchThreadID)
         (InputImage[id.xy].z * 255.0h) + (-103.06h), 1.0h);
 }
 
-[numthreads(8, 8, 1)]
-void ScaleInputImage(uint3 id : SV_DispatchThreadID)
-{
-    Result[id.xy] = half4((InputImage[id.xy].x / 255.0h),
-        (InputImage[id.xy].y / 255.0h),
-        (InputImage[id.xy].z / 255.0h), 1.0h);
-}
 
 [numthreads(8, 8, 1)]
-void FlipImage(uint3 id : SV_DispatchThreadID)
+void PreprocessMobileNet(uint3 id : SV_DispatchThreadID)
 {
-    // Calculate the flipped pixel coordinates
-    flip = half2(height, width) - id.xy;
-    flip[1] = id.y;
-    Result[id.xy] = half4(InputImage[flip].x, InputImage[flip].y, InputImage[flip].z, 1.0h);
+    //2 * (value - min) / (max - min) - 1
+    Result[id.xy] = half4((2.0h * (InputImage[id.xy].x) / (1.0h) - 1.0h),
+        (2.0h * (InputImage[id.xy].y) / (1.0h) - 1.0h),
+        (2.0h * (InputImage[id.xy].z) / (1.0h) - 1.0h), 1.0h);
+
 }
