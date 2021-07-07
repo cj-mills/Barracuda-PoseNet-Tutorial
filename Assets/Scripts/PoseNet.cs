@@ -4,8 +4,8 @@ using UnityEngine.Video;
 
 public class PoseNet : MonoBehaviour
 {
-    [Tooltip("The input image that will be fed to the model")]
-    public RenderTexture videoTexture;
+    //[Tooltip("The input image that will be fed to the model")]
+    //public RenderTexture videoTexture;
 
     [Tooltip("The ComputeShader that will perform the model-specific preprocessing")]
     public ComputeShader posenetShader;
@@ -81,6 +81,10 @@ public class PoseNet : MonoBehaviour
     // The width of the current video source
     private int videoWidth;
 
+    private RenderTexture videoTexture;
+    RenderTexture rTex;
+    Transform videoScreen;
+
 
     // Start is called before the first frame update
     void Start()
@@ -89,7 +93,7 @@ public class PoseNet : MonoBehaviour
         GameObject videoPlayer = GameObject.Find("Video Player");
         
         // Get the Transform component for the VideoScreen GameObject
-        Transform videoScreen = GameObject.Find("VideoScreen").transform;
+        videoScreen = GameObject.Find("VideoScreen").transform;
 
         if (useWebcam)
         {
@@ -122,9 +126,12 @@ public class PoseNet : MonoBehaviour
         }
 
         // Release the current videoTexture
-        videoTexture.Release();
+        //videoTexture.Release();
         // Create a new videoTexture using the current video dimensions
-        videoTexture = new RenderTexture(videoWidth, videoHeight, 24, RenderTextureFormat.ARGB32);
+        videoTexture = RenderTexture.GetTemporary(videoWidth, videoHeight, 24, RenderTextureFormat.ARGBHalf);
+
+        rTex = RenderTexture.GetTemporary(imageWidth, imageHeight, 24, RenderTextureFormat.ARGBHalf);
+
 
         // Use new videoTexture for Video Player
         videoPlayer.GetComponent<VideoPlayer>().targetTexture = videoTexture;
@@ -159,6 +166,9 @@ public class PoseNet : MonoBehaviour
     // OnDisable is called when the MonoBehavior becomes disabled or inactive
     private void OnDisable()
     {
+        RenderTexture.ReleaseTemporary(videoTexture);
+        RenderTexture.ReleaseTemporary(rTex);
+
         // Release the resources allocated for the inference engine
         engine.Dispose();
     }
@@ -173,28 +183,21 @@ public class PoseNet : MonoBehaviour
         }
 
 
-        // Preprocess the image for the current frame
-        Texture2D processedImage = PreprocessImage();
+        if (imageWidth != rTex.width || imageHeight != rTex.height)
+        {
+            RenderTexture.ReleaseTemporary(rTex);
+            // Assign a temporary RenderTexture with the new dimensions
+            rTex = RenderTexture.GetTemporary(imageWidth, imageHeight, 24, RenderTextureFormat.ARGBHalf);
+        }
 
-        if (displayInput)
-        {
-            // Activate the InputScreen GameObject
-            inputScreen.SetActive(true);
-            // Create a temporary Texture2D to store the rescaled input image
-            Texture2D scaledInputImage = ScaleInputImage(processedImage);
-            // Copy the data from the Texture2D to the RenderTexture
-            Graphics.Blit(scaledInputImage, inputTexture);
-            // Destroy the temporary Texture2D
-            Destroy(scaledInputImage);
-        }
-        else
-        {
-            // Deactivate the InputScreen GameObject
-            inputScreen.SetActive(false);
-        }
+        // Copy the src RenderTexture to the new rTex RenderTexture
+        Graphics.Blit(videoTexture, rTex);
+
+        // Apply preprocessing steps
+        ProcessImage(rTex, "PreprocessResNet");
 
         // Create a Tensor of shape [1, processedImage.height, processedImage.width, 3]
-        Tensor input = new Tensor(processedImage, channels: 3);
+        Tensor input = new Tensor(rTex, channels: 3);
 
         // Execute neural network with the provided input
         engine.Execute(input);
@@ -207,103 +210,40 @@ public class PoseNet : MonoBehaviour
 
         // Release GPU resources allocated for the Tensor
         input.Dispose();
-        // Remove the processedImage variable
-        Destroy(processedImage);
     }
 
     /// <summary>
-    /// Prepare the image to be fed into the neural network
+    /// Process the provided image using the specified function on the GPU
     /// </summary>
-    /// <returns>The processed image</returns>
-    private Texture2D PreprocessImage()
-    {
-        // Create a new Texture2D with the same dimensions as videoTexture
-        Texture2D imageTexture = new Texture2D(videoTexture.width, videoTexture.height, TextureFormat.RGBA32, false);
-
-        // Copy the RenderTexture contents to the new Texture2D
-        Graphics.CopyTexture(videoTexture, imageTexture);
-
-        // Make a temporary Texture2D to store the resized image
-        Texture2D tempTex = Resize(imageTexture, imageHeight, imageWidth);
-        // Remove the original imageTexture
-        Destroy(imageTexture);
-
-        // Apply model-specific preprocessing
-        imageTexture = PreprocessResNet(tempTex);
-        // Remove the temporary Texture2D
-        Destroy(tempTex);
-
-        return imageTexture;
-    }
-
-    /// <summary>
-    /// Resize the provided Texture2D
-    /// </summary>
-    /// <param name="image">The image to be resized</param>
-    /// <param name="newWidth">The new image width</param>
-    /// <param name="newHeight">The new image height</param>
-    /// <returns>The resized image</returns>
-    private Texture2D Resize(Texture2D image, int newWidth, int newHeight)
-    {
-        // Create a temporary RenderTexture
-        RenderTexture rTex = RenderTexture.GetTemporary(newWidth, newHeight, 24);
-        // Make the temporary RenderTexture the active RenderTexture
-        RenderTexture.active = rTex;
-
-        // Copy the Texture2D to the temporary RenderTexture
-        Graphics.Blit(image, rTex);
-        // Create a new Texture2D with the new Dimensions
-        Texture2D nTex = new Texture2D(newWidth, newHeight, TextureFormat.RGBA32, false);
-
-        // Copy the temporary RenderTexture to the new Texture2D
-        Graphics.CopyTexture(rTex, nTex);
-
-        // Make the temporary RenderTexture not the active RenderTexture
-        RenderTexture.active = null;
-
-        // Release the temporary RenderTexture
-        RenderTexture.ReleaseTemporary(rTex);
-        return nTex;
-    }
-
-    /// <summary>
-    /// Perform model-specific preprocessing on the GPU
-    /// </summary>
-    /// <param name="inputImage">The image to be processed</param>
-    /// <returns>The processed image</returns>
-    private Texture2D PreprocessResNet(Texture2D inputImage)
+    /// <param name="image"></param>
+    /// <param name="functionName"></param>
+    /// <returns></returns>
+    private void ProcessImage(RenderTexture image, string functionName)
     {
         // Specify the number of threads on the GPU
         int numthreads = 8;
-        // Get the index for the PreprocessResNet function in the ComputeShader
-        int kernelHandle = posenetShader.FindKernel("PreprocessResNet");
-        // Define an HDR RenderTexture
-        RenderTexture rTex = new RenderTexture(inputImage.width, inputImage.height, 24, RenderTextureFormat.ARGBHalf);
+        // Get the index for the specified function in the ComputeShader
+        int kernelHandle = posenetShader.FindKernel(functionName);
+        // Define a temporary HDR RenderTexture
+        RenderTexture result = RenderTexture.GetTemporary(image.width, image.height, 24, RenderTextureFormat.ARGBHalf);
         // Enable random write access
-        rTex.enableRandomWrite = true;
+        result.enableRandomWrite = true;
         // Create the HDR RenderTexture
-        rTex.Create();
+        result.Create();
 
         // Set the value for the Result variable in the ComputeShader
-        posenetShader.SetTexture(kernelHandle, "Result", rTex);
+        posenetShader.SetTexture(kernelHandle, "Result", result);
         // Set the value for the InputImage variable in the ComputeShader
-        posenetShader.SetTexture(kernelHandle, "InputImage", inputImage);
+        posenetShader.SetTexture(kernelHandle, "InputImage", image);
 
         // Execute the ComputeShader
-        posenetShader.Dispatch(kernelHandle, inputImage.height / numthreads, inputImage.width / numthreads, 1);
-        // Make the HDR RenderTexture the active RenderTexture
-        RenderTexture.active = rTex;
+        posenetShader.Dispatch(kernelHandle, result.width / numthreads, result.height / numthreads, 1);
 
-        // Create a new HDR Texture2D
-        Texture2D nTex = new Texture2D(rTex.width, rTex.height, TextureFormat.RGBAHalf, false);
+        // Copy the result into the source RenderTexture
+        Graphics.Blit(result, image);
 
-        // Copy the RenderTexture to the new Texture2D
-        Graphics.CopyTexture(rTex, nTex);
-        // Make the HDR RenderTexture not the active RenderTexture
-        RenderTexture.active = null;
-        // Remove the HDR RenderTexture
-        Destroy(rTex);
-        return nTex;
+        // Release the temporary RenderTexture
+        RenderTexture.ReleaseTemporary(result);
     }
 
     /// <summary>
@@ -354,7 +294,7 @@ public class PoseNet : MonoBehaviour
     private void ProcessOutput(Tensor heatmaps, Tensor offsets)
     {
         // Calculate the stride used to scale down the inputImage
-        float stride = (imageHeight - 1) / (heatmaps.shape[1] - 1);
+        float stride = (imageHeight - 1) / (heatmaps.shape.height - 1);
         stride -= (stride % 8);
 
         // The smallest dimension of the videoTexture
@@ -431,10 +371,10 @@ public class PoseNet : MonoBehaviour
         float[] offset_vector = new float[2];
 
         // Iterate through heatmap columns
-        for (int y = 0; y < heatmaps.shape[1]; y++)
+        for (int y = 0; y < heatmaps.shape.height; y++)
         {
             // Iterate through column rows
-            for (int x = 0; x < heatmaps.shape[2]; x++)
+            for (int x = 0; x < heatmaps.shape.width; x++)
             {
                 if (heatmaps[0, y, x, keypointIndex] > maxConfidence)
                 {
