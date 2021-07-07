@@ -4,8 +4,12 @@ using UnityEngine.Video;
 
 public class PoseNet : MonoBehaviour
 {
-    //[Tooltip("The input image that will be fed to the model")]
-    //public RenderTexture videoTexture;
+    public enum ModelType
+    {
+        MobileNet,
+        ResNet50
+    }
+
 
     [Tooltip("The ComputeShader that will perform the model-specific preprocessing")]
     public ComputeShader posenetShader;
@@ -31,14 +35,19 @@ public class PoseNet : MonoBehaviour
     [Tooltip("Use webcam feed as input")]
     public bool useWebcam = false;
 
+    [Tooltip("Use GPU for preprocessing")]
+    public bool useGPU = true;
+
     [Tooltip("The screen for viewing preprocessed images")]
     public GameObject inputScreen;
 
-    [Tooltip("Stores the preprocessed image")]
-    public RenderTexture inputTexture;
+    public ModelType modelType = ModelType.ResNet50;
 
-    [Tooltip("The model asset file to use when performing inference")]
-    public NNModel modelAsset;
+    [Tooltip("The MobileNet model asset file to use when performing inference")]
+    public NNModel mobileNetModelAsset;
+
+    [Tooltip("The ResNet50 model asset file to use when performing inference")]
+    public NNModel resnetModelAsset;
 
     [Tooltip("The backend to use when performing inference")]
     public WorkerFactory.Type workerType = WorkerFactory.Type.Auto;
@@ -85,6 +94,11 @@ public class PoseNet : MonoBehaviour
     RenderTexture rTex;
     Transform videoScreen;
 
+    string preProcessFuncName;
+
+    Tensor input;
+
+    
 
     // Start is called before the first frame update
     void Start()
@@ -150,8 +164,31 @@ public class PoseNet : MonoBehaviour
         // Adjust the camera size to account for updates to the VideoScreen
         mainCamera.GetComponent<Camera>().orthographicSize = videoHeight/2;
 
-        // Compile the model asset into an object oriented representation
-        m_RunTimeModel = ModelLoader.Load(modelAsset);
+        if (modelType == ModelType.ResNet50)
+        {
+            heatmapLayer = "float_heatmaps";
+            offsetsLayer = "float_short_offsets";
+
+            minConfidence = 80;
+
+
+            // Compile the model asset into an object oriented representation
+            m_RunTimeModel = ModelLoader.Load(resnetModelAsset);
+            preProcessFuncName = "PreprocessResNet";
+        }
+        else
+        {
+            heatmapLayer = "heatmap_2";
+            offsetsLayer = "offset_2";
+
+            minConfidence = 65;
+
+
+            // Compile the model asset into an object oriented representation
+            m_RunTimeModel = ModelLoader.Load(mobileNetModelAsset);
+            preProcessFuncName = "PreprocessMobileNet";
+        }
+
 
         // Create a model builder to modify the m_RunTimeModel
         var modelBuilder = new ModelBuilder(m_RunTimeModel);
@@ -193,11 +230,36 @@ public class PoseNet : MonoBehaviour
         // Copy the src RenderTexture to the new rTex RenderTexture
         Graphics.Blit(videoTexture, rTex);
 
-        // Apply preprocessing steps
-        ProcessImage(rTex, "PreprocessResNet");
 
-        // Create a Tensor of shape [1, processedImage.height, processedImage.width, 3]
-        Tensor input = new Tensor(rTex, channels: 3);
+        if (useGPU)
+        {
+            // Apply preprocessing steps
+            ProcessImage(rTex, preProcessFuncName);
+
+            // Create a Tensor of shape [1, processedImage.height, processedImage.width, 3]
+            input = new Tensor(rTex, channels: 3);
+        }
+        else
+        {
+            input = new Tensor(rTex, channels: 3);
+            float[] tensor_array = input.data.Download(input.shape);
+
+            if (modelType == ModelType.MobileNet)
+            {
+                PreprocessMobilenet(tensor_array);
+            }
+            else
+            {
+                PreprocessResnet(tensor_array);
+            }
+            input = new Tensor(input.shape.batch, 
+                               input.shape.height, 
+                               input.shape.width, 
+                               input.shape.channels, 
+                               tensor_array);
+        }
+
+        
 
         // Execute neural network with the provided input
         engine.Execute(input);
@@ -246,44 +308,30 @@ public class PoseNet : MonoBehaviour
         RenderTexture.ReleaseTemporary(result);
     }
 
-    /// <summary>
-    /// Rescale the pixel values from [0, 255] to [0.0, 1.0]
-    /// </summary>
-    /// <param name="inputImage"></param>
-    /// <returns>The rescaled image</returns>
-    private Texture2D ScaleInputImage(Texture2D inputImage)
+    private void PreprocessMobilenet(float[] tensor)
     {
-        // Specify the number of threads on the GPU
-        int numthreads = 8;
-        // Get the index for the ScaleInputImage function in the ComputeShader
-        int kernelHandle = posenetShader.FindKernel("ScaleInputImage");
-        // Define an HDR RenderTexture
-        RenderTexture rTex = new RenderTexture(inputImage.width, inputImage.height, 24, RenderTextureFormat.ARGBHalf);
-        // Enable random write access
-        rTex.enableRandomWrite = true;
-        // Create the HDR RenderTexture
-        rTex.Create();
+        for (int i = 0; i < tensor.Length; i++)
+        {
+            tensor[i] = (float)(2.0f * tensor[i] / 1.0f) - 1.0f;
+        }
 
-        // Set the value for the Result variable in the ComputeShader
-        posenetShader.SetTexture(kernelHandle, "Result", rTex);
-        // Set the value for the InputImage variable in the ComputeShader
-        posenetShader.SetTexture(kernelHandle, "InputImage", inputImage);
+        //return tensor;
+    }
 
-        // Execute the ComputeShader
-        posenetShader.Dispatch(kernelHandle, inputImage.height / numthreads, inputImage.width / numthreads, 1);
-        // Make the HDR RenderTexture the active RenderTexture
-        RenderTexture.active = rTex;
+    private void PreprocessResnet(float[] tensor)
+    {
+        float[] imagenetMean = new float[] { -123.15f, -115.90f, -103.06f };
 
-        // Create a new HDR Texture2D
-        Texture2D nTex = new Texture2D(rTex.width, rTex.height, TextureFormat.RGBAHalf, false);
+        for (int i = 0; i < tensor.Length / 3; i++)
+        {
 
-        // Copy the RenderTexture to the new Texture2D
-        Graphics.CopyTexture(rTex, nTex);
-        // Make the HDR RenderTexture not the active RenderTexture
-        RenderTexture.active = null;
-        // Remove the HDR RenderTexture
-        Destroy(rTex);
-        return nTex;
+            tensor[i * 3 + 0] = (float)tensor[i * 3 + 0] * 255f + imagenetMean[0];
+            tensor[i * 3 + 1] = (float)tensor[i * 3 + 1] * 255f + imagenetMean[1];
+            tensor[i * 3 + 2] = (float)tensor[i * 3 + 2] * 255f + imagenetMean[2];
+
+        }
+
+        //return tensor;
     }
 
     /// <summary>
