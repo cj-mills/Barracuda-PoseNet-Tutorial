@@ -4,6 +4,12 @@ using UnityEngine.Video;
 
 public class PoseNet : MonoBehaviour
 {
+    public enum EstimationType
+    {
+        MultiPose,
+        SinglePose
+    }
+
     public enum ModelType
     {
         MobileNet,
@@ -39,6 +45,10 @@ public class PoseNet : MonoBehaviour
 
     [Tooltip("The screen for viewing preprocessed images")]
     public GameObject inputScreen;
+
+
+    [Tooltip("The type of pose estimation to be performed")]
+    public EstimationType estimationType = EstimationType.SinglePose;
 
     [Tooltip("The model architecture used")]
     public ModelType modelType = ModelType.ResNet50;
@@ -269,30 +279,31 @@ public class PoseNet : MonoBehaviour
         // Execute neural network with the provided input
         engine.Execute(input);
 
-        // Determine the key point locations
-        //ProcessOutput(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer));
+        if (estimationType == EstimationType.SinglePose)
+        {
+            // Determine the key point locations
+            ProcessOutput(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer));
 
-        //engine.PeekOutput(displacementFWDLayer);
-        //engine.PeekOutput(displacementBWDLayer);
+            // Update the positions for the key point GameObjects
+            UpdateKeyPointPositions();
+        }
+        else
+        {
+            // Calculate the stride used to scale down the inputImage
+            float stride = (imageHeight - 1) / (engine.PeekOutput(predictionLayer).shape.height - 1);
+            stride -= (stride % 8);
 
-        // Calculate the stride used to scale down the inputImage
-        float stride = (imageHeight - 1) / (engine.PeekOutput(predictionLayer).shape.height - 1);
-        stride -= (stride % 8);
+            // Determine the key point locations
+            PoseNetClass.Pose[] poses = posenet.DecodeMultiplePoses(
+                engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer),
+                engine.PeekOutput(displacementFWDLayer),
+                engine.PeekOutput(displacementBWDLayer),
+                outputStride: (int)stride, maxPoseDetections: 15,
+                scoreThreshold: 0.25f, nmsRadius: 20);
 
-        PoseNetClass.Pose[] poses = posenet.DecodeMultiplePoses(
-            engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer),
-            engine.PeekOutput(displacementFWDLayer),
-            engine.PeekOutput(displacementBWDLayer),
-            outputStride: (int)stride, maxPoseDetections: 15,
-            scoreThreshold: 0.25f, nmsRadius: 20);
-
-        //Debug.Log(poses[0].keypoints[0].score);
-        //Debug.Log(poses[0].keypoints[0].position);
-        //Debug.Log(poses[0].keypoints[0].part);
-
-        // Update the positions for the key point GameObjects
-        //UpdateKeyPointPositions();
-        UpdateKeyPointPositions2(poses[0]);
+            // Update the positions for the key point GameObjects
+            UpdateKeyPointPositions2(poses[0]);
+        }
 
         // Release GPU resources allocated for the Tensor
         input.Dispose();
