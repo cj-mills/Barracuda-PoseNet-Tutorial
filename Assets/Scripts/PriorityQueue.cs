@@ -15,6 +15,7 @@ using System.Linq;
 /// <typeparam name="TValue">Type of values in the queue.</typeparam>
 public class PriorityQueue<TPriority, TValue> : IEnumerable<KeyValuePair<TPriority, TValue>>
 {
+    
     public class ValueCollection : IEnumerable<TValue>
     {
         private readonly PriorityQueue<TPriority, TValue> parentCollection;
