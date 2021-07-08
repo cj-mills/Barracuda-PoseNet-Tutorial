@@ -50,6 +50,18 @@ public class PoseNet : MonoBehaviour
     [Tooltip("The type of pose estimation to be performed")]
     public EstimationType estimationType = EstimationType.SinglePose;
 
+    [Tooltip("The maximum number of posees to estimate")]
+    [Range(1, 15)]
+    public int maxPoses = 15;
+
+    [Tooltip("The score threshold for multipose estimation")]
+    [Range(0, 1.0f)]
+    public float scoreThreshold = 0.25f;
+
+    [Tooltip("Non-maximum suppression part distance")]
+    [Range(0, 20)]
+    public int nmsRadius = 20;
+
     [Tooltip("The model architecture used")]
     public ModelType modelType = ModelType.ResNet50;
 
@@ -298,8 +310,8 @@ public class PoseNet : MonoBehaviour
                 engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer),
                 engine.PeekOutput(displacementFWDLayer),
                 engine.PeekOutput(displacementBWDLayer),
-                outputStride: (int)stride, maxPoseDetections: 15,
-                scoreThreshold: 0.25f, nmsRadius: 20);
+                outputStride: (int)stride, maxPoseDetections: maxPoses,
+                scoreThreshold: scoreThreshold, nmsRadius: nmsRadius);
 
             // Update the positions for the key point GameObjects
             UpdateKeyPointPositions2(poses[0]);
