@@ -81,7 +81,7 @@ public class PoseNet : MonoBehaviour
     public int minConfidence = 70;
 
     [Tooltip("The list of key point GameObjects that make up the pose skeleton")]
-    public GameObject[] keypoints;
+    //public GameObject[] keypoints;
 
     public GameObject keypointPrefab;
 
@@ -137,26 +137,28 @@ public class PoseNet : MonoBehaviour
     PoseNetClass posenet = new PoseNetClass();
 
     GameObject[] keyPointPrefabs;
-    DrawSkeleton1[] skeletons;
+    PoseSkeleton[] skeletons;
 
 
     // Start is called before the first frame update
     void Start()
     {
         keyPointPrefabs = new GameObject[maxPoses];
-        skeletons = new DrawSkeleton1[maxPoses];
+        skeletons = new PoseSkeleton[maxPoses];
 
         keypointPrefab.GetComponentInChildren<Transform>();
 
-        if (estimationType == EstimationType.MultiPose)
+        if (estimationType == EstimationType.SinglePose)
         {
-            for (int i = 0; i < maxPoses; i++)
-            {
-                keyPointPrefabs[i] = Instantiate(keypointPrefab);
-                List<Transform> tempList = keyPointPrefabs[i].GetComponentsInChildren<Transform>().ToList();
-                tempList.RemoveAt(0);
-                skeletons[i] = new DrawSkeleton1(tempList.ToArray());
-            }
+            maxPoses = 1;
+        }
+
+        for (int i = 0; i < maxPoses; i++)
+        {
+            keyPointPrefabs[i] = Instantiate(keypointPrefab);
+            List<Transform> tempList = keyPointPrefabs[i].GetComponentsInChildren<Transform>().ToList();
+            tempList.RemoveAt(0);
+            skeletons[i] = new PoseSkeleton(tempList.ToArray());
         }
 
 
@@ -323,8 +325,19 @@ public class PoseNet : MonoBehaviour
             // Determine the key point locations
             ProcessOutput(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer));
 
+
+            Transform[] transforms = keyPointPrefabs[0].GetComponentsInChildren<Transform>();
+            GameObject[] gameObjects = new GameObject[transforms.Length - 1];
+
+            for (int i = 0; i < gameObjects.Length; i++)
+            {
+                gameObjects[i] = transforms[i + 1].gameObject;
+            }
+
             // Update the positions for the key point GameObjects
-            UpdateKeyPointPositions();
+            UpdateKeyPointPositions(gameObjects);
+
+            skeletons[0].RenderSkeleton();
         }
         else
         {
@@ -358,20 +371,7 @@ public class PoseNet : MonoBehaviour
                     gameObjects[i] = transforms[i + 1].gameObject;
                 }
 
-                //for (int i = 1; i < transforms.Length; i++)
-                //{
-                //    if (i > poses.Length - 1)
-                //    {
-                //        transforms[i].gameObject.SetActive(false);
-                //        Debug.Log("here");
-                //    }
-                //    else
-                //    {
-                //        transforms[i].gameObject.SetActive(true);
-                //    }
-                //    Debug.Log(transforms[i]);
-                //}
-
+                
                 // Update the positions for the key point GameObjects
                 //UpdateKeyPointPositions2(pose, transforms);
                 UpdateKeyPointPositions2(pose, gameObjects);
@@ -569,7 +569,7 @@ public class PoseNet : MonoBehaviour
     /// <summary>
     /// Update the positions for the key point GameObjects
     /// </summary>
-    private void UpdateKeyPointPositions()
+    private void UpdateKeyPointPositions(GameObject[] keypoints)
     {
         // Iterate through the key points
         for (int k = 0; k < numKeypoints; k++)
@@ -578,13 +578,15 @@ public class PoseNet : MonoBehaviour
             if (keypointLocations[k][2] >= minConfidence / 100f)
             {
                 // Activate the current key point GameObject
-                keypoints[k].SetActive(true);
+                keypoints[k].GetComponent<MeshRenderer>().enabled = true;
+                //keypoints[k].SetActive(true);
                 //keypoints[k].activeInHierarchy
             }
             else
             {
                 // Deactivate the current key point GameObject
-                keypoints[k].SetActive(false);
+                keypoints[k].GetComponent<MeshRenderer>().enabled = false;
+                //keypoints[k].SetActive(false);
             }
 
             // Create a new position Vector3
