@@ -14,7 +14,7 @@ public class PoseSkeleton
 
 
 
-    private int numKeypoints = 17;
+    private int numKeypoints = partNames.Length;
 
     // The list of key point GameObjects that make up the pose skeleton
     public Transform[] keypoints;
