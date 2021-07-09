@@ -1,8 +1,6 @@
 ﻿using Unity.Barracuda;
 using UnityEngine;
 using UnityEngine.Video;
-using System.Linq;
-using System.Collections.Generic;
 
 public class PoseNet : MonoBehaviour
 {
@@ -349,7 +347,6 @@ public class PoseNet : MonoBehaviour
                     gameObjects[i] = skeletons[index].keypoints[i].gameObject;
                 }
 
-                
                 // Update the positions for the key point GameObjects
                 UpdateKeyPointPositions2(pose, gameObjects);
                 skeletons[index].RenderSkeleton();
