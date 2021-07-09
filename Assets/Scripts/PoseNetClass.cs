@@ -396,12 +396,9 @@ public class PoseNetClass
     /// <param name="y2"></param>
     /// <param name="x2"></param>
     /// <returns></returns>
-    float SquaredDistance(
-        float y1, float x1, float y2, float x2)
+    float SquaredDistance(float y1, float x1, float y2, float x2)
     {
-        var dy = y2 - y1;
-        var dx = x2 - x1;
-        return dy * dy + dx * dx;
+        return (y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1);
     }
 
     /// <summary>
