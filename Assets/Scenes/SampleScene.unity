@@ -427,10 +427,10 @@ MonoBehaviour:
   useGPU: 1
   inputScreen: {fileID: 613877718}
   estimationType: 0
-  maxPoses: 5
+  maxPoses: 2
   scoreThreshold: 0.25
-  nmsRadius: 0
-  modelType: 1
+  nmsRadius: 1
+  modelType: 0
   mobileNetModelAsset: {fileID: 5022602860645237092, guid: e3ca9630dbbfd8c458d4144a509b1f81,
     type: 3}
   resnetModelAsset: {fileID: 5022602860645237092, guid: c941343b78633004a97904ec343ea2ea,
