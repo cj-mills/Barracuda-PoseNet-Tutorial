@@ -81,6 +81,11 @@ public class PoseNet : MonoBehaviour
     [Tooltip("The list of key point GameObjects that make up the pose skeleton")]
     public GameObject[] keypoints;
 
+    public GameObject keypointPrefab;
+
+    //[Tooltip("The list of key point GameObjects that make up the pose skeleton")]
+    //public GameObject[] keypoint2;
+
     // The compiled model used for performing inference
     private Model m_RunTimeModel;
 
@@ -129,10 +134,25 @@ public class PoseNet : MonoBehaviour
 
     PoseNetClass posenet = new PoseNetClass();
 
+    GameObject[] keyPointPrefabs;
+
 
     // Start is called before the first frame update
     void Start()
     {
+        keyPointPrefabs = new GameObject[maxPoses];
+
+        keypointPrefab.GetComponentInChildren<Transform>();
+
+        if (estimationType == EstimationType.MultiPose)
+        {
+            for (int i = 0; i < maxPoses; i++)
+            {
+                keyPointPrefabs[i] = Instantiate(keypointPrefab);
+            }
+        }
+
+
         // Get a reference to the Video Player GameObject
         GameObject videoPlayer = GameObject.Find("Video Player");
         
@@ -301,20 +321,47 @@ public class PoseNet : MonoBehaviour
         }
         else
         {
+            Tensor heatmap = engine.PeekOutput(predictionLayer);
+            Tensor offsets = engine.PeekOutput(offsetsLayer);
+            Tensor displacementFWD = engine.PeekOutput(displacementFWDLayer);
+            Tensor displacementBWD = engine.PeekOutput(displacementBWDLayer);
+
             // Calculate the stride used to scale down the inputImage
-            float stride = (imageHeight - 1) / (engine.PeekOutput(predictionLayer).shape.height - 1);
+            float stride = (imageHeight - 1) / (heatmap.shape.height - 1);
             stride -= (stride % 8);
 
             // Determine the key point locations
             PoseNetClass.Pose[] poses = posenet.DecodeMultiplePoses(
-                engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer),
-                engine.PeekOutput(displacementFWDLayer),
-                engine.PeekOutput(displacementBWDLayer),
+                heatmap, offsets,
+                displacementFWD,
+                displacementBWD,
                 outputStride: (int)stride, maxPoseDetections: maxPoses,
                 scoreThreshold: scoreThreshold, nmsRadius: nmsRadius);
 
-            // Update the positions for the key point GameObjects
-            UpdateKeyPointPositions2(poses[0]);
+
+            int index = 0;
+            foreach (PoseNetClass.Pose pose in poses)
+            {
+
+                Transform[] transforms = keyPointPrefabs[index].GetComponentsInChildren<Transform>();
+                //for (int i = 1; i < transforms.Length; i++)
+                //{
+                //    Debug.Log(transforms[i]);
+                //}
+
+                // Update the positions for the key point GameObjects
+                UpdateKeyPointPositions2(pose, transforms);
+                //UpdateKeyPointPositions2(poses[1], keypoint2);
+
+                
+
+                index++;
+            }
+
+            heatmap.Dispose();
+            offsets.Dispose();
+            displacementFWD.Dispose();
+            displacementBWD.Dispose();
         }
 
         // Release GPU resources allocated for the Tensor
@@ -526,7 +573,7 @@ public class PoseNet : MonoBehaviour
         }
     }
 
-    private void UpdateKeyPointPositions2(PoseNetClass.Pose pose)
+    private void UpdateKeyPointPositions2(PoseNetClass.Pose pose, Transform[] keypoints)
     {
         // The smallest dimension of the videoTexture
         int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
@@ -539,20 +586,26 @@ public class PoseNet : MonoBehaviour
         float unsqueezeScale = (float)maxDimension / (float)minDimension;
 
 
+        float zPos = -1f;
+
         // Iterate through the key points
         for (int k = 0; k < numKeypoints; k++)
         {
             // Check if the current confidence value meets the confidence threshold
             if (pose.keypoints[k].score >= minConfidence / 100f)
             {
+                //Debug.Log(keypoints[k+1].gameObject.name);
                 // Activate the current key point GameObject
-                keypoints[k].SetActive(true);
+                //keypoints[k+1].gameObject.SetActive(true);
                 //keypoints[k].activeInHierarchy
+                zPos = -1f;
             }
             else
             {
                 // Deactivate the current key point GameObject
-                keypoints[k].SetActive(false);
+                //keypoints[k+1].gameObject.SetActive(false);
+
+                zPos = -10f;
             }
 
             float xPos = pose.keypoints[k].position.x * scale;
@@ -574,10 +627,10 @@ public class PoseNet : MonoBehaviour
 
             // Create a new position Vector3
             // Set the z value to -1f to place it in front of the video screen
-            Vector3 newPos = new Vector3(xPos, yPos, -1f);
+            Vector3 newPos = new Vector3(xPos, yPos, zPos);
 
             // Update the current key point location
-            keypoints[k].transform.position = newPos;
+            keypoints[k+1].transform.position = newPos;
         }
     }
 
