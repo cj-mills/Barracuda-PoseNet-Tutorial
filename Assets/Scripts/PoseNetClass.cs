@@ -9,7 +9,7 @@ public class PoseNetClass
 {
     const int kLocalMaximumRadius = 1;
 
-    public static String[] partNames = new String[]{
+    public static string[] partNames = new string[]{
             "nose", "leftEye", "rightEye", "leftEar", "rightEar", "leftShoulder",
             "rightShoulder", "leftElbow", "rightElbow", "leftWrist", "rightWrist",
             "leftHip", "rightHip", "leftKnee", "rightKnee", "leftAnkle", "rightAnkle"
