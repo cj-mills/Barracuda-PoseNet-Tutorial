@@ -330,7 +330,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &831889867
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -426,35 +426,17 @@ MonoBehaviour:
   useWebcam: 0
   useGPU: 1
   inputScreen: {fileID: 613877718}
-  estimationType: 0
-  maxPoses: 2
+  estimationType: 1
+  maxPoses: 15
   scoreThreshold: 0.25
-  nmsRadius: 1
-  modelType: 0
+  nmsRadius: 20
+  modelType: 1
   mobileNetModelAsset: {fileID: 5022602860645237092, guid: e3ca9630dbbfd8c458d4144a509b1f81,
     type: 3}
   resnetModelAsset: {fileID: 5022602860645237092, guid: c941343b78633004a97904ec343ea2ea,
     type: 3}
   workerType: 256
   minConfidence: 80
-  keypoints:
-  - {fileID: 1176835031}
-  - {fileID: 1022554435}
-  - {fileID: 2038611542}
-  - {fileID: 2125890516}
-  - {fileID: 706434389}
-  - {fileID: 1734989234}
-  - {fileID: 1882854860}
-  - {fileID: 1571307986}
-  - {fileID: 926125697}
-  - {fileID: 1687541384}
-  - {fileID: 1249529984}
-  - {fileID: 1515228420}
-  - {fileID: 175943832}
-  - {fileID: 1111902140}
-  - {fileID: 867060401}
-  - {fileID: 1616945773}
-  - {fileID: 1402041196}
   keypointPrefab: {fileID: 7647511216213222616, guid: 13da1b74dc076f245881947a28b34d2c,
     type: 3}
 --- !u!4 &977542379
@@ -514,7 +496,7 @@ VideoPlayer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1245939431}
   m_Enabled: 1
-  m_VideoClip: {fileID: 32900000, guid: 16fa76e0198730d48833f1f30075aebf, type: 3}
+  m_VideoClip: {fileID: 32900000, guid: fb9c120e88320ad479db16c805ad5aa9, type: 3}
   m_TargetCameraAlpha: 1
   m_TargetCamera3DLayout: 0
   m_TargetCamera: {fileID: 0}
@@ -685,6 +667,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: KeyPoints
+      objectReference: {fileID: 0}
+    - target: {fileID: 7647511216213222616, guid: 13da1b74dc076f245881947a28b34d2c,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7647511216213222619, guid: 13da1b74dc076f245881947a28b34d2c,
         type: 3}
