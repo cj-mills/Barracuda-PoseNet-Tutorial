@@ -1,6 +1,8 @@
 ﻿using Unity.Barracuda;
 using UnityEngine;
 using UnityEngine.Video;
+using System.Linq;
+using System.Collections.Generic;
 
 public class PoseNet : MonoBehaviour
 {
@@ -59,7 +61,7 @@ public class PoseNet : MonoBehaviour
     public float scoreThreshold = 0.25f;
 
     [Tooltip("Non-maximum suppression part distance")]
-    [Range(0, 20)]
+    [Range(0, 100)]
     public int nmsRadius = 20;
 
     [Tooltip("The model architecture used")]
@@ -135,12 +137,14 @@ public class PoseNet : MonoBehaviour
     PoseNetClass posenet = new PoseNetClass();
 
     GameObject[] keyPointPrefabs;
+    DrawSkeleton1[] skeletons;
 
 
     // Start is called before the first frame update
     void Start()
     {
         keyPointPrefabs = new GameObject[maxPoses];
+        skeletons = new DrawSkeleton1[maxPoses];
 
         keypointPrefab.GetComponentInChildren<Transform>();
 
@@ -149,6 +153,9 @@ public class PoseNet : MonoBehaviour
             for (int i = 0; i < maxPoses; i++)
             {
                 keyPointPrefabs[i] = Instantiate(keypointPrefab);
+                List<Transform> tempList = keyPointPrefabs[i].GetComponentsInChildren<Transform>().ToList();
+                tempList.RemoveAt(0);
+                skeletons[i] = new DrawSkeleton1(tempList.ToArray());
             }
         }
 
@@ -344,16 +351,32 @@ public class PoseNet : MonoBehaviour
             {
 
                 Transform[] transforms = keyPointPrefabs[index].GetComponentsInChildren<Transform>();
+                GameObject[] gameObjects = new GameObject[transforms.Length - 1];
+
+                for (int i=0; i < gameObjects.Length; i++)
+                {
+                    gameObjects[i] = transforms[i + 1].gameObject;
+                }
+
                 //for (int i = 1; i < transforms.Length; i++)
                 //{
+                //    if (i > poses.Length - 1)
+                //    {
+                //        transforms[i].gameObject.SetActive(false);
+                //        Debug.Log("here");
+                //    }
+                //    else
+                //    {
+                //        transforms[i].gameObject.SetActive(true);
+                //    }
                 //    Debug.Log(transforms[i]);
                 //}
 
                 // Update the positions for the key point GameObjects
-                UpdateKeyPointPositions2(pose, transforms);
-                //UpdateKeyPointPositions2(poses[1], keypoint2);
+                //UpdateKeyPointPositions2(pose, transforms);
+                UpdateKeyPointPositions2(pose, gameObjects);
+                skeletons[index].RenderSkeleton();
 
-                
 
                 index++;
             }
@@ -573,7 +596,7 @@ public class PoseNet : MonoBehaviour
         }
     }
 
-    private void UpdateKeyPointPositions2(PoseNetClass.Pose pose, Transform[] keypoints)
+    private void UpdateKeyPointPositions2(PoseNetClass.Pose pose, GameObject[] keypoints)
     {
         // The smallest dimension of the videoTexture
         int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
@@ -596,16 +619,17 @@ public class PoseNet : MonoBehaviour
             {
                 //Debug.Log(keypoints[k+1].gameObject.name);
                 // Activate the current key point GameObject
-                //keypoints[k+1].gameObject.SetActive(true);
+                //Debug.Log(keypoints[k].name);
+                keypoints[k].GetComponent<MeshRenderer>().enabled = true;
                 //keypoints[k].activeInHierarchy
-                zPos = -1f;
+                //zPos = -1f;
             }
             else
             {
                 // Deactivate the current key point GameObject
-                //keypoints[k+1].gameObject.SetActive(false);
+                keypoints[k].GetComponent<MeshRenderer>().enabled = false;
 
-                zPos = -10f;
+                //zPos = -10f;
             }
 
             float xPos = pose.keypoints[k].position.x * scale;
@@ -630,7 +654,7 @@ public class PoseNet : MonoBehaviour
             Vector3 newPos = new Vector3(xPos, yPos, zPos);
 
             // Update the current key point location
-            keypoints[k+1].transform.position = newPos;
+            keypoints[k].transform.position = newPos;
         }
     }
 
