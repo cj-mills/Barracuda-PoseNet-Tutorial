@@ -154,7 +154,7 @@ public class PoseNetClass
     Vector2 GetImageCoords(
         Part part, int outputStride, Tensor offsets)
     {
-        var vec = GetOffsetPoint(part.heatmapY, part.heatmapX,
+        Vector2 vec = GetOffsetPoint(part.heatmapY, part.heatmapX,
                                  part.id, offsets);
         return new Vector2(
             (float)(part.heatmapX * outputStride) + vec.x,
@@ -207,17 +207,17 @@ public class PoseNetClass
         int localMaximumRadius, Tensor scores)
     {
 
-        var height = scores.height;
-        var width = scores.width;
-        var localMaximum = true;
-        var yStart = Mathf.Max(heatmapY - localMaximumRadius, 0);
-        var yEnd = Mathf.Min(heatmapY + localMaximumRadius + 1, height);
+        int height = scores.height;
+        int width = scores.width;
+        bool localMaximum = true;
+        int yStart = Mathf.Max(heatmapY - localMaximumRadius, 0);
+        int yEnd = Mathf.Min(heatmapY + localMaximumRadius + 1, height);
 
-        for (var yCurrent = yStart; yCurrent < yEnd; ++yCurrent)
+        for (int yCurrent = yStart; yCurrent < yEnd; ++yCurrent)
         {
-            var xStart = Mathf.Max(heatmapX - localMaximumRadius, 0);
-            var xEnd = Mathf.Min(heatmapX + localMaximumRadius + 1, width);
-            for (var xCurrent = xStart; xCurrent < xEnd; ++xCurrent)
+            int xStart = Mathf.Max(heatmapX - localMaximumRadius, 0);
+            int xEnd = Mathf.Min(heatmapX + localMaximumRadius + 1, width);
+            for (int xCurrent = xStart; xCurrent < xEnd; ++xCurrent)
             {
                 if (scores[0, yCurrent, xCurrent, keypointId] > score)
                 {
@@ -262,7 +262,7 @@ public class PoseNetClass
     Vector2 GetDisplacement(int edgeId, Vector2Int point, Tensor displacements)
     {
 
-        var numEdges = (int)(displacements.channels / 2);
+        int numEdges = (int)(displacements.channels / 2);
 
         return new Vector2(
             displacements[0, point.y, point.x, numEdges + edgeId],
@@ -290,29 +290,29 @@ public class PoseNetClass
         Tensor displacements)
     {
 
-        var height = scores.height;
-        var width = scores.width;
+        int height = scores.height;
+        int width = scores.width;
 
         // Nearest neighbor interpolation for the source->target displacements.
-        var sourceKeypointIndices = GetStridedIndexNearPoint(
+        Vector2Int sourceKeypointIndices = GetStridedIndexNearPoint(
             sourceKeypoint.position, outputStride, height, width);
 
-        var displacement =
+        Vector2 displacement =
             GetDisplacement(edgeId, sourceKeypointIndices, displacements);
 
-        var displacedPoint = AddVectors(sourceKeypoint.position, displacement);
+        Vector2 displacedPoint = AddVectors(sourceKeypoint.position, displacement);
 
-        var displacedPointIndices =
+        Vector2Int displacedPointIndices =
             GetStridedIndexNearPoint(displacedPoint, outputStride, height, width);
 
-        var offsetPoint = GetOffsetPoint(
+        Vector2 offsetPoint = GetOffsetPoint(
                 displacedPointIndices.y, displacedPointIndices.x, targetKeypointId,
                 offsets);
 
-        var score = scores[0,
+        float score = scores[0,
             displacedPointIndices.y, displacedPointIndices.x, targetKeypointId];
 
-        var targetKeypoint =
+        Vector2 targetKeypoint =
             AddVectors(
                 new Vector2(
                     x: displacedPointIndices.x * outputStride,
@@ -337,15 +337,15 @@ public class PoseNetClass
         Tensor displacementsBwd)
     {
 
-        var numParts = scores.channels;
-        var numEdges = parentToChildEdges.Length;
+        int numParts = scores.channels;
+        int numEdges = parentToChildEdges.Length;
 
-        var instanceKeypoints = new Keypoint[numParts];
+        Keypoint[] instanceKeypoints = new Keypoint[numParts];
 
         // Start a new detection instance at the position of the root.
-        var rootPart = root.part;
-        var rootScore = root.score;
-        var rootPoint = GetImageCoords(rootPart, outputStride, offsets);
+        Part rootPart = root.part;
+        float rootScore = root.score;
+        Vector2 rootPoint = GetImageCoords(rootPart, outputStride, offsets);
 
         instanceKeypoints[rootPart.id] = new Keypoint(
             rootScore,
@@ -355,10 +355,10 @@ public class PoseNetClass
 
         // Decode the part positions upwards in the tree, following the backward
         // displacements.
-        for (var edge = numEdges - 1; edge >= 0; --edge)
+        for (int edge = numEdges - 1; edge >= 0; --edge)
         {
-            var sourceKeypointId = parentToChildEdges[edge];
-            var targetKeypointId = childToParentEdges[edge];
+            int sourceKeypointId = parentToChildEdges[edge];
+            int targetKeypointId = childToParentEdges[edge];
             if (instanceKeypoints[sourceKeypointId].score > 0.0f &&
                 instanceKeypoints[targetKeypointId].score == 0.0f)
             {
@@ -370,10 +370,10 @@ public class PoseNetClass
 
         // Decode the part positions downwards in the tree, following the forward
         // displacements.
-        for (var edge = 0; edge < numEdges; ++edge)
+        for (int edge = 0; edge < numEdges; ++edge)
         {
-            var sourceKeypointId = childToParentEdges[edge];
-            var targetKeypointId = parentToChildEdges[edge];
+            int sourceKeypointId = childToParentEdges[edge];
+            int targetKeypointId = parentToChildEdges[edge];
             if (instanceKeypoints[sourceKeypointId].score > 0.0f &&
                 instanceKeypoints[targetKeypointId].score == 0.0f)
             {
@@ -449,11 +449,11 @@ public class PoseNetClass
         float scoreThreshold, int localMaximumRadius,
         Tensor scores)
     {
-        var queue = new PriorityQueue<float, PartWithScore>();
+        PriorityQueue<float, PartWithScore> queue = new PriorityQueue<float, PartWithScore>();
 
-        var height = scores.height;
-        var width = scores.width;
-        var numKeypoints = scores.channels;
+        int height = scores.height;
+        int width = scores.width;
+        int numKeypoints = scores.channels;
 
         for (int k = 0; k < numKeypoints; k++)
         {
@@ -504,20 +504,20 @@ public class PoseNetClass
         int outputStride, int maxPoseDetections,
         float scoreThreshold, int nmsRadius = 20)
     {
-        var poses = new List<Pose>();
-        var squaredNmsRadius = (float)nmsRadius * nmsRadius;
+        List<Pose> poses = new List<Pose>();
+        float squaredNmsRadius = (float)nmsRadius * nmsRadius;
 
         PriorityQueue<float, PartWithScore> queue = BuildPartWithScoreQueue(
             scoreThreshold, kLocalMaximumRadius, scores);
 
         while (poses.Count < maxPoseDetections && queue.Count > 0)
         {
-            var root = queue.Pop().Value;
+            PartWithScore root = queue.Pop().Value;
 
             // Part-based non-maximum suppression: We reject a root candidate if it
             // is within a disk of `nmsRadius` pixels from the corresponding part of
             // a previously detected instance.
-            var rootImageCoords =
+            Vector2 rootImageCoords =
                 GetImageCoords(root.part, outputStride, offsets);
 
             if (WithinNmsRadiusOfCorrespondingPoint(
@@ -527,11 +527,11 @@ public class PoseNetClass
             }
 
             // Start a new detection instance at the position of the root.
-            var keypoints = DecodePose(
+            Keypoint[] keypoints = DecodePose(
                 root, scores, offsets, outputStride, displacementsFwd,
                 displacementBwd);
 
-            var score = GetInstanceScore(poses, squaredNmsRadius, keypoints);
+            float score = GetInstanceScore(poses, squaredNmsRadius, keypoints);
             poses.Add(new Pose(keypoints, score));
         }
 
