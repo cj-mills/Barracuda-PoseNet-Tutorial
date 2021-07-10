@@ -22,23 +22,23 @@ public class PoseNetClass
         .ToDictionary(p => p.k, p => p.v);
 
     public static Tuple<string, string>[] connectedPartNames = new Tuple<string, string>[] {
-                Tuple.Create("leftHip", "leftShoulder"), Tuple.Create("leftElbow", "leftShoulder"),
-                Tuple.Create("leftElbow", "leftWrist"), Tuple.Create("leftHip", "leftKnee"),
-                Tuple.Create("leftKnee", "leftAnkle"), Tuple.Create("rightHip", "rightShoulder"),
-                Tuple.Create("rightElbow", "rightShoulder"), Tuple.Create("rightElbow", "rightWrist"),
-                Tuple.Create("rightHip", "rightKnee"), Tuple.Create("rightKnee", "rightAnkle"),
-                Tuple.Create("leftShoulder", "rightShoulder"), Tuple.Create("leftHip", "rightHip")
+                Tuple.Create(partNames[11], partNames[5]), Tuple.Create(partNames[7], partNames[5]),
+                Tuple.Create(partNames[7], partNames[9]), Tuple.Create(partNames[11], partNames[13]),
+                Tuple.Create(partNames[13], partNames[15]), Tuple.Create(partNames[12], partNames[6]),
+                Tuple.Create(partNames[8], partNames[6]), Tuple.Create(partNames[8], partNames[10]),
+                Tuple.Create(partNames[12], partNames[14]), Tuple.Create(partNames[14], partNames[16]),
+                Tuple.Create(partNames[5], partNames[6]), Tuple.Create(partNames[11], partNames[12])
             };
 
     public static Tuple<string, string>[] poseChain = new Tuple<string, string>[]{
-                Tuple.Create("nose", "leftEye"), Tuple.Create("leftEye", "leftEar"), Tuple.Create("nose", "rightEye"),
-                Tuple.Create("rightEye", "rightEar"), Tuple.Create("nose", "leftShoulder"),
-                Tuple.Create("leftShoulder", "leftElbow"), Tuple.Create("leftElbow", "leftWrist"),
-                Tuple.Create("leftShoulder", "leftHip"), Tuple.Create("leftHip", "leftKnee"),
-                Tuple.Create("leftKnee", "leftAnkle"), Tuple.Create("nose", "rightShoulder"),
-                Tuple.Create("rightShoulder", "rightElbow"), Tuple.Create("rightElbow", "rightWrist"),
-                Tuple.Create("rightShoulder", "rightHip"), Tuple.Create("rightHip", "rightKnee"),
-                Tuple.Create("rightKnee", "rightAnkle")
+                Tuple.Create(partNames[0], partNames[1]), Tuple.Create(partNames[1], partNames[3]), Tuple.Create(partNames[0], partNames[2]),
+                Tuple.Create(partNames[2], partNames[4]), Tuple.Create(partNames[0], partNames[5]),
+                Tuple.Create(partNames[5], partNames[7]), Tuple.Create(partNames[7], partNames[9]),
+                Tuple.Create(partNames[5], partNames[11]), Tuple.Create(partNames[11], partNames[13]),
+                Tuple.Create(partNames[13], partNames[15]), Tuple.Create(partNames[0], partNames[6]),
+                Tuple.Create(partNames[6], partNames[8]), Tuple.Create(partNames[8], partNames[10]),
+                Tuple.Create(partNames[6], partNames[12]), Tuple.Create(partNames[12], partNames[14]),
+                Tuple.Create(partNames[14], partNames[16])
             };
 
     public static Tuple<int, int>[] connectedPartIndices = connectedPartNames.Select(x =>
