@@ -206,17 +206,14 @@ public class PoseNetClass
         int keypointId, float score, int heatmapY, int heatmapX,
         int localMaximumRadius, Tensor scores)
     {
-
-        int height = scores.height;
-        int width = scores.width;
         bool localMaximum = true;
         int yStart = Mathf.Max(heatmapY - localMaximumRadius, 0);
-        int yEnd = Mathf.Min(heatmapY + localMaximumRadius + 1, height);
+        int yEnd = Mathf.Min(heatmapY + localMaximumRadius + 1, scores.height);
 
         for (int yCurrent = yStart; yCurrent < yEnd; ++yCurrent)
         {
             int xStart = Mathf.Max(heatmapX - localMaximumRadius, 0);
-            int xEnd = Mathf.Min(heatmapX + localMaximumRadius + 1, width);
+            int xEnd = Mathf.Min(heatmapX + localMaximumRadius + 1, scores.width);
             for (int xCurrent = xStart; xCurrent < xEnd; ++xCurrent)
             {
                 if (scores[0, yCurrent, xCurrent, keypointId] > score)
