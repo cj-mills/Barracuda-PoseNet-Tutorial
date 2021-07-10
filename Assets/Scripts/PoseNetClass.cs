@@ -451,15 +451,11 @@ public class PoseNetClass
     {
         PriorityQueue<float, PartWithScore> queue = new PriorityQueue<float, PartWithScore>();
 
-        int height = scores.height;
-        int width = scores.width;
-        int numKeypoints = scores.channels;
-
-        for (int k = 0; k < numKeypoints; k++)
+        for (int k = 0; k < scores.channels; k++)
         {
-            for (int y = 0; y < height; y++)
+            for (int y = 0; y < scores.height; y++)
             {
-                for (int x = 0; x < width; x++)
+                for (int x = 0; x < scores.width; x++)
                 {
                     float score = scores[0, y, x, k];
 
