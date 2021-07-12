@@ -531,8 +531,8 @@ public class PoseNet : MonoBehaviour
             }
         }
 
-        PoseNetClass.Keypoint keypoint = new PoseNetClass.Keypoint(maxConfidence, coords, PoseNetClass.partNames[keypointIndex]);
-
+        PoseNetClass.Keypoint keypoint = new PoseNetClass.Keypoint(maxConfidence, coords, 
+                                                                   PoseNetClass.partNames[keypointIndex]);
         return keypoint;
     }
 
