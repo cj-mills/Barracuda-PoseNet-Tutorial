@@ -104,7 +104,7 @@ public class PoseNet : MonoBehaviour
 
     // Stores the current estimated 2D keypoint locations in videoTexture
     // and their associated confidence values
-    private float[][] keypointLocations = new float[numKeypoints][];
+    private PoseNetClass.Pose singlePose = new PoseNetClass.Pose(new PoseNetClass.Keypoint[numKeypoints], 0f);
 
     // Live video input from a webcam
     private WebCamTexture webcamTexture;
@@ -318,7 +318,8 @@ public class PoseNet : MonoBehaviour
             }
 
             // Update the positions for the key point GameObjects
-            UpdateKeyPointPositions(gameObjects);
+            //UpdateKeyPointPositions(gameObjects);
+            UpdateKeyPointPositions(singlePose, gameObjects);
 
             skeletons[0].RenderSkeleton();
         }
@@ -447,49 +448,53 @@ public class PoseNet : MonoBehaviour
         // The value used to compensate for resizing the source image to a square aspect ratio
         float unsqueezeScale = (float)maxDimension / (float)minDimension;
 
+        
+
         // Iterate through heatmaps
         for (int k = 0; k < numKeypoints; k++)
         {
             // Get the location of the current key point and its associated confidence value
-            var locationInfo = LocateKeyPointIndex(heatmaps, offsets, k);
+            PoseNetClass.Keypoint keypoint = LocateKeyPointIndex(heatmaps, k);
 
-            // The (x, y) coordinates containing the confidence value in the current heatmap
-            var coords = locationInfo.Item1;
             // The accompanying offset vector for the current coords
-            var offset_vector = locationInfo.Item2;
-            // The associated confidence value
-            var confidenceValue = locationInfo.Item3;
+            Vector2 offset_vector = PoseNetClass.GetOffsetPoint((int)keypoint.position.y, (int)keypoint.position.x, k, offsets);
 
             // Calcluate the X-axis position
             // Scale the X coordinate up to the inputImage resolution
             // Add the offset vector to refine the key point location
             // Scale the position up to the videoTexture resolution
             // Compensate for any change in aspect ratio
-            float xPos = (coords[0]*stride + offset_vector[0])*scale;
+            //float xPos = (keypoint.position.x*stride + offset_vector.x)*scale;
+            keypoint.position.x = (keypoint.position.x * stride + offset_vector.x) * scale;
 
             // Calculate the Y-axis position
             // Scale the Y coordinate up to the inputImage resolution and subtract it from the imageHeight
             // Add the offset vector to refine the key point location
             // Scale the position up to the videoTexture resolution
-            float yPos = (imageHeight - (coords[1]*stride + offset_vector[1]))*scale;
+            //float yPos = (imageHeight - (keypoint.position.y*stride + offset_vector.y))*scale;
+            keypoint.position.y = (imageHeight - (keypoint.position.y * stride + offset_vector.y)) * scale;
 
             if (videoTexture.width > videoTexture.height)
             {
-                xPos *= unsqueezeScale;
+                //xPos *= unsqueezeScale;
+                keypoint.position.x *= unsqueezeScale;
             }
             else
             {
-                yPos *= unsqueezeScale;
+                //yPos *= unsqueezeScale;
+                keypoint.position.y *= unsqueezeScale; 
             }
 
             // Flip the x position if using a webcam
             if (useWebcam)
             {
-                xPos = videoTexture.width - xPos;
+                //xPos = videoTexture.width - xPos;
+                keypoint.position.x = videoTexture.width - keypoint.position.x;
             }
 
             // Update the estimated key point location in the source image
-            keypointLocations[k] = new float[] { xPos, yPos, confidenceValue };
+            //keypointLocations[k] = new float[] { xPos, yPos, keypoint.score };
+            singlePose.keypoints[k] = keypoint;
         }
     }
 
@@ -500,15 +505,13 @@ public class PoseNet : MonoBehaviour
     /// <param name="offsets"></param>
     /// <param name="keypointIndex"></param>
     /// <returns>The heatmap index, offset vector, and associated confidence value</returns>
-    private (float[], float[], float) LocateKeyPointIndex(Tensor heatmaps, Tensor offsets, int keypointIndex)
+    private PoseNetClass.Keypoint LocateKeyPointIndex(Tensor heatmaps, int keypointIndex)
     {
         // Stores the highest confidence value found in the current heatmap
         float maxConfidence = 0f;
 
         // The (x, y) coordinates containing the confidence value in the current heatmap
-        float[] coords = new float[2];
-        // The accompanying offset vector for the current coords
-        float[] offset_vector = new float[2];
+        Vector2 coords = new Vector2();
 
         // Iterate through heatmap columns
         for (int y = 0; y < heatmaps.shape.height; y++)
@@ -522,33 +525,27 @@ public class PoseNet : MonoBehaviour
                     maxConfidence = heatmaps[0, y, x, keypointIndex];
 
                     // Update the estimated key point coordinates
-                    coords = new float[] { x, y };
-
-                    // Update the offset vector for the current key point location
-                    offset_vector = new float[]
-                    {
-                            // X-axis offset
-                            offsets[0, y, x, keypointIndex + numKeypoints],
-                            // Y-axis offset
-                            offsets[0, y, x, keypointIndex]
-                    };
+                    coords.x = x;
+                    coords.y = y;
                 }
             }
         }
 
-        return ( coords, offset_vector, maxConfidence );
+        PoseNetClass.Keypoint keypoint = new PoseNetClass.Keypoint(maxConfidence, coords, PoseNetClass.partNames[keypointIndex]);
+
+        return keypoint;
     }
 
     /// <summary>
     /// Update the positions for the key point GameObjects
     /// </summary>
-    private void UpdateKeyPointPositions(GameObject[] keypoints)
+    private void UpdateKeyPointPositions(PoseNetClass.Pose pose, GameObject[] keypoints)
     {
         // Iterate through the key points
         for (int k = 0; k < numKeypoints; k++)
         {
             // Check if the current confidence value meets the confidence threshold
-            if (keypointLocations[k][2] >= minConfidence / 100f)
+            if (pose.keypoints[k].score >= minConfidence / 100f)
             {
                 // Activate the current key point GameObject
                 keypoints[k].GetComponent<MeshRenderer>().enabled = true;
@@ -561,7 +558,7 @@ public class PoseNet : MonoBehaviour
 
             // Create a new position Vector3
             // Set the z value to -1f to place it in front of the video screen
-            Vector3 newPos = new Vector3(keypointLocations[k][0], keypointLocations[k][1], -1f);
+            Vector3 newPos = new Vector3(pose.keypoints[k].position.x, pose.keypoints[k].position.y, -1f);
 
             // Update the current key point location
             keypoints[k].transform.position = newPos;
@@ -620,5 +617,118 @@ public class PoseNet : MonoBehaviour
             keypoints[k].transform.position = newPos;
         }
     }
+
+    ///// <summary>
+    ///// Determine the estimated key point locations using the heatmaps and offsets tensors
+    ///// </summary>
+    ///// <param name="heatmaps">The heatmaps that indicate the confidence levels for key point locations</param>
+    ///// <param name="offsets">The offsets that refine the key point locations determined with the heatmaps</param>
+    //private void ProcessOutput(Tensor heatmaps, Tensor offsets)
+    //{
+    //    // Calculate the stride used to scale down the inputImage
+    //    float stride = (imageHeight - 1) / (heatmaps.shape.height - 1);
+    //    stride -= (stride % 8);
+
+    //    // The smallest dimension of the videoTexture
+    //    int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
+    //    // The largest dimension of the videoTexture
+    //    int maxDimension = Mathf.Max(videoTexture.width, videoTexture.height);
+
+    //    // The value used to scale the key point locations up to the source resolution
+    //    float scale = (float)minDimension / (float)Mathf.Min(imageWidth, imageHeight);
+    //    // The value used to compensate for resizing the source image to a square aspect ratio
+    //    float unsqueezeScale = (float)maxDimension / (float)minDimension;
+
+    //    // Iterate through heatmaps
+    //    for (int k = 0; k < numKeypoints; k++)
+    //    {
+    //        // Get the location of the current key point and its associated confidence value
+    //        var locationInfo = LocateKeyPointIndex(heatmaps, offsets, k);
+
+    //        // The (x, y) coordinates containing the confidence value in the current heatmap
+    //        var coords = locationInfo.Item1;
+    //        // The accompanying offset vector for the current coords
+    //        var offset_vector = locationInfo.Item2;
+    //        // The associated confidence value
+    //        var confidenceValue = locationInfo.Item3;
+
+    //        // Calcluate the X-axis position
+    //        // Scale the X coordinate up to the inputImage resolution
+    //        // Add the offset vector to refine the key point location
+    //        // Scale the position up to the videoTexture resolution
+    //        // Compensate for any change in aspect ratio
+    //        float xPos = (coords[0] * stride + offset_vector[0]) * scale;
+
+    //        // Calculate the Y-axis position
+    //        // Scale the Y coordinate up to the inputImage resolution and subtract it from the imageHeight
+    //        // Add the offset vector to refine the key point location
+    //        // Scale the position up to the videoTexture resolution
+    //        float yPos = (imageHeight - (coords[1] * stride + offset_vector[1])) * scale;
+
+    //        if (videoTexture.width > videoTexture.height)
+    //        {
+    //            xPos *= unsqueezeScale;
+    //        }
+    //        else
+    //        {
+    //            yPos *= unsqueezeScale;
+    //        }
+
+    //        // Flip the x position if using a webcam
+    //        if (useWebcam)
+    //        {
+    //            xPos = videoTexture.width - xPos;
+    //        }
+
+    //        // Update the estimated key point location in the source image
+    //        keypointLocations[k] = new float[] { xPos, yPos, confidenceValue };
+    //    }
+    //}
+
+    ///// <summary>
+    ///// Find the heatmap index that contains the highest confidence value and the associated offset vector
+    ///// </summary>
+    ///// <param name="heatmaps"></param>
+    ///// <param name="offsets"></param>
+    ///// <param name="keypointIndex"></param>
+    ///// <returns>The heatmap index, offset vector, and associated confidence value</returns>
+    //private (float[], float[], float) LocateKeyPointIndex(Tensor heatmaps, Tensor offsets, int keypointIndex)
+    //{
+    //    // Stores the highest confidence value found in the current heatmap
+    //    float maxConfidence = 0f;
+
+    //    // The (x, y) coordinates containing the confidence value in the current heatmap
+    //    float[] coords = new float[2];
+    //    // The accompanying offset vector for the current coords
+    //    float[] offset_vector = new float[2];
+
+    //    // Iterate through heatmap columns
+    //    for (int y = 0; y < heatmaps.shape.height; y++)
+    //    {
+    //        // Iterate through column rows
+    //        for (int x = 0; x < heatmaps.shape.width; x++)
+    //        {
+    //            if (heatmaps[0, y, x, keypointIndex] > maxConfidence)
+    //            {
+    //                // Update the highest confidence for the current key point
+    //                maxConfidence = heatmaps[0, y, x, keypointIndex];
+
+    //                // Update the estimated key point coordinates
+    //                coords = new float[] { x, y };
+
+    //                // Update the offset vector for the current key point location
+    //                offset_vector = new float[]
+    //                {
+    //                        // X-axis offset
+    //                        offsets[0, y, x, keypointIndex + numKeypoints],
+    //                        // Y-axis offset
+    //                        offsets[0, y, x, keypointIndex]
+    //                };
+    //            }
+    //        }
+    //    }
+
+    //    return (coords, offset_vector, maxConfidence);
+    //}
 
 }
