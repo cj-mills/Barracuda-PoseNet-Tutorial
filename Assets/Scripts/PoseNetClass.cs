@@ -15,7 +15,7 @@ public class PoseNetClass
             "leftHip", "rightHip", "leftKnee", "rightKnee", "leftAnkle", "rightAnkle"
         };
 
-    public int NUM_KEYPOINTS = partNames.Length;
+    public static int NUM_KEYPOINTS = partNames.Length;
 
     public static Dictionary<String, int> partIds = partNames
         .Select((k, v) => new { k, v })
@@ -31,14 +31,14 @@ public class PoseNetClass
             };
 
     public static Tuple<string, string>[] poseChain = new Tuple<string, string>[]{
-                Tuple.Create(partNames[0], partNames[1]), Tuple.Create(partNames[1], partNames[3]), Tuple.Create(partNames[0], partNames[2]),
-                Tuple.Create(partNames[2], partNames[4]), Tuple.Create(partNames[0], partNames[5]),
-                Tuple.Create(partNames[5], partNames[7]), Tuple.Create(partNames[7], partNames[9]),
-                Tuple.Create(partNames[5], partNames[11]), Tuple.Create(partNames[11], partNames[13]),
-                Tuple.Create(partNames[13], partNames[15]), Tuple.Create(partNames[0], partNames[6]),
-                Tuple.Create(partNames[6], partNames[8]), Tuple.Create(partNames[8], partNames[10]),
-                Tuple.Create(partNames[6], partNames[12]), Tuple.Create(partNames[12], partNames[14]),
-                Tuple.Create(partNames[14], partNames[16])
+                Tuple.Create(partNames[0], partNames[1]), Tuple.Create(partNames[1], partNames[3]), 
+                Tuple.Create(partNames[0], partNames[2]), Tuple.Create(partNames[2], partNames[4]), 
+                Tuple.Create(partNames[0], partNames[5]), Tuple.Create(partNames[5], partNames[7]), 
+                Tuple.Create(partNames[7], partNames[9]), Tuple.Create(partNames[5], partNames[11]), 
+                Tuple.Create(partNames[11], partNames[13]), Tuple.Create(partNames[13], partNames[15]), 
+                Tuple.Create(partNames[0], partNames[6]), Tuple.Create(partNames[6], partNames[8]), 
+                Tuple.Create(partNames[8], partNames[10]), Tuple.Create(partNames[6], partNames[12]), 
+                Tuple.Create(partNames[12], partNames[14]), Tuple.Create(partNames[14], partNames[16])
             };
 
     public static Tuple<int, int>[] connectedPartIndices = connectedPartNames.Select(x =>
@@ -125,7 +125,7 @@ public class PoseNetClass
     /// <param name="keypoint"></param>
     /// <param name="offsets"></param>
     /// <returns></returns>
-    Vector2 GetOffsetPoint(int y, int x, int keypoint, Tensor offsets)
+    public static Vector2 GetOffsetPoint(int y, int x, int keypoint, Tensor offsets)
     {
         return new Vector2(
             offsets[0, y, x, keypoint + NUM_KEYPOINTS],
