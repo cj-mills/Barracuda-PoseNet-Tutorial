@@ -300,15 +300,29 @@ public class PoseNet : MonoBehaviour
         // Execute neural network with the provided input
         engine.Execute(input);
 
-        Tensor heatmap = engine.PeekOutput(predictionLayer);
+        Tensor heatmaps = engine.PeekOutput(predictionLayer);
         Tensor offsets = engine.PeekOutput(offsetsLayer);
         Tensor displacementFWD = engine.PeekOutput(displacementFWDLayer);
         Tensor displacementBWD = engine.PeekOutput(displacementBWDLayer);
 
+        // Calculate the stride used to scale down the inputImage
+        float stride = (imageHeight - 1) / (heatmaps.shape.height - 1);
+        stride -= (stride % 8);
+
+        // The smallest dimension of the videoTexture
+        int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
+        // The largest dimension of the videoTexture
+        int maxDimension = Mathf.Max(videoTexture.width, videoTexture.height);
+
+        // The value used to scale the key point locations up to the source resolution
+        float scale = (float)minDimension / (float)Mathf.Min(imageWidth, imageHeight);
+        // The value used to compensate for resizing the source image to a square aspect ratio
+        float unsqueezeScale = (float)maxDimension / (float)minDimension;
+
         if (estimationType == EstimationType.SinglePose)
         {
             // Determine the key point locations
-            ProcessOutput(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer));
+            ProcessOutput(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer), stride);
 
             GameObject[] gameObjects = new GameObject[skeletons[0].keypoints.Length];
 
@@ -318,25 +332,19 @@ public class PoseNet : MonoBehaviour
             }
 
             // Update the positions for the key point GameObjects
-            //UpdateKeyPointPositions(gameObjects);
-            UpdateKeyPointPositions(singlePose, gameObjects);
+            UpdateKeyPointPositions(singlePose, gameObjects, scale, unsqueezeScale);
 
             skeletons[0].RenderSkeleton();
         }
         else
         {
-            // Calculate the stride used to scale down the inputImage
-            float stride = (imageHeight - 1) / (heatmap.shape.height - 1);
-            stride -= (stride % 8);
-
             // Determine the key point locations
             PoseNetClass.Pose[] poses = posenet.DecodeMultiplePoses(
-                heatmap, offsets,
+                heatmaps, offsets,
                 displacementFWD,
                 displacementBWD,
                 outputStride: (int)stride, maxPoseDetections: maxPoses,
                 scoreThreshold: scoreThreshold, nmsRadius: nmsRadius);
-
 
             int index = 0;
             foreach (PoseNetClass.Pose pose in poses)
@@ -349,7 +357,7 @@ public class PoseNet : MonoBehaviour
                 }
 
                 // Update the positions for the key point GameObjects
-                UpdateKeyPointPositions2(pose, gameObjects);
+                UpdateKeyPointPositions(pose, gameObjects, scale, unsqueezeScale);
                 skeletons[index].RenderSkeleton();
 
                 index++;
@@ -359,7 +367,7 @@ public class PoseNet : MonoBehaviour
         // Release GPU resources allocated for the Tensor
         input.Dispose();
 
-        heatmap.Dispose();
+        heatmaps.Dispose();
         offsets.Dispose();
         displacementFWD.Dispose();
         displacementBWD.Dispose();
@@ -432,24 +440,8 @@ public class PoseNet : MonoBehaviour
     /// </summary>
     /// <param name="heatmaps">The heatmaps that indicate the confidence levels for key point locations</param>
     /// <param name="offsets">The offsets that refine the key point locations determined with the heatmaps</param>
-    private void ProcessOutput(Tensor heatmaps, Tensor offsets)
+    private void ProcessOutput(Tensor heatmaps, Tensor offsets, float stride)
     {
-        // Calculate the stride used to scale down the inputImage
-        float stride = (imageHeight - 1) / (heatmaps.shape.height - 1);
-        stride -= (stride % 8);
-
-        // The smallest dimension of the videoTexture
-        int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
-        // The largest dimension of the videoTexture
-        int maxDimension = Mathf.Max(videoTexture.width, videoTexture.height);
-
-        // The value used to scale the key point locations up to the source resolution
-        float scale = (float) minDimension / (float) Mathf.Min(imageWidth, imageHeight);
-        // The value used to compensate for resizing the source image to a square aspect ratio
-        float unsqueezeScale = (float)maxDimension / (float)minDimension;
-
-        
-
         // Iterate through heatmaps
         for (int k = 0; k < numKeypoints; k++)
         {
@@ -459,41 +451,13 @@ public class PoseNet : MonoBehaviour
             // The accompanying offset vector for the current coords
             Vector2 offset_vector = PoseNetClass.GetOffsetPoint((int)keypoint.position.y, (int)keypoint.position.x, k, offsets);
 
-            // Calcluate the X-axis position
-            // Scale the X coordinate up to the inputImage resolution
-            // Add the offset vector to refine the key point location
-            // Scale the position up to the videoTexture resolution
-            // Compensate for any change in aspect ratio
-            //float xPos = (keypoint.position.x*stride + offset_vector.x)*scale;
-            keypoint.position.x = (keypoint.position.x * stride + offset_vector.x) * scale;
-
-            // Calculate the Y-axis position
-            // Scale the Y coordinate up to the inputImage resolution and subtract it from the imageHeight
-            // Add the offset vector to refine the key point location
-            // Scale the position up to the videoTexture resolution
-            //float yPos = (imageHeight - (keypoint.position.y*stride + offset_vector.y))*scale;
-            keypoint.position.y = (imageHeight - (keypoint.position.y * stride + offset_vector.y)) * scale;
-
-            if (videoTexture.width > videoTexture.height)
-            {
-                //xPos *= unsqueezeScale;
-                keypoint.position.x *= unsqueezeScale;
-            }
-            else
-            {
-                //yPos *= unsqueezeScale;
-                keypoint.position.y *= unsqueezeScale; 
-            }
-
-            // Flip the x position if using a webcam
-            if (useWebcam)
-            {
-                //xPos = videoTexture.width - xPos;
-                keypoint.position.x = videoTexture.width - keypoint.position.x;
-            }
+            // Calcluate the position
+            // Scale the coordinates up to the inputImage resolution
+            // Add the offset vectors to refine the key point location
+            keypoint.position.x = (keypoint.position.x * stride + offset_vector.x);
+            keypoint.position.y = (keypoint.position.y * stride + offset_vector.y);
 
             // Update the estimated key point location in the source image
-            //keypointLocations[k] = new float[] { xPos, yPos, keypoint.score };
             singlePose.keypoints[k] = keypoint;
         }
     }
@@ -536,11 +500,37 @@ public class PoseNet : MonoBehaviour
         return keypoint;
     }
 
+
+    private float FlipCoords(int imageDimemsion, float position)
+    {
+        return imageDimemsion - position;
+    }
+
+
+    private Vector2 ScaleOutput(PoseNetClass.Keypoint keypoint, float sourceScale, float unsqueezeScale)
+    {
+        // Scale the position up to the videoTexture resolution
+        keypoint.position.x *= sourceScale;
+        keypoint.position.y = keypoint.position.y *= sourceScale;
+
+        if (videoTexture.width > videoTexture.height)
+        {
+            keypoint.position.x *= unsqueezeScale;
+        }
+        else
+        {
+            keypoint.position.y *= unsqueezeScale;
+        }
+
+        return keypoint.position;
+    }
+
     /// <summary>
     /// Update the positions for the key point GameObjects
     /// </summary>
-    private void UpdateKeyPointPositions(PoseNetClass.Pose pose, GameObject[] keypoints)
+    private void UpdateKeyPointPositions(PoseNetClass.Pose pose, GameObject[] keypoints, float sourceScale, float unsqueezeScale)
     {
+
         // Iterate through the key points
         for (int k = 0; k < numKeypoints; k++)
         {
@@ -554,64 +544,21 @@ public class PoseNet : MonoBehaviour
             {
                 // Deactivate the current key point GameObject
                 keypoints[k].GetComponent<MeshRenderer>().enabled = false;
+            }
+
+            pose.keypoints[k].position = ScaleOutput(pose.keypoints[k], sourceScale, unsqueezeScale);
+            pose.keypoints[k].position.y = FlipCoords(videoTexture.height, pose.keypoints[k].position.y);
+
+            // Mirror the x position if using a webcam
+            if (useWebcam)
+            {
+                pose.keypoints[k].position.x = FlipCoords(videoTexture.width,
+                    pose.keypoints[k].position.x);
             }
 
             // Create a new position Vector3
             // Set the z value to -1f to place it in front of the video screen
             Vector3 newPos = new Vector3(pose.keypoints[k].position.x, pose.keypoints[k].position.y, -1f);
-
-            // Update the current key point location
-            keypoints[k].transform.position = newPos;
-        }
-    }
-
-    private void UpdateKeyPointPositions2(PoseNetClass.Pose pose, GameObject[] keypoints)
-    {
-        // The smallest dimension of the videoTexture
-        int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
-        // The largest dimension of the videoTexture
-        int maxDimension = Mathf.Max(videoTexture.width, videoTexture.height);
-
-        // The value used to scale the key point locations up to the source resolution
-        float scale = (float)minDimension / (float)Mathf.Min(imageWidth, imageHeight);
-        // The value used to compensate for resizing the source image to a square aspect ratio
-        float unsqueezeScale = (float)maxDimension / (float)minDimension;
-
-        // Iterate through the key points
-        for (int k = 0; k < numKeypoints; k++)
-        {
-            // Check if the current confidence value meets the confidence threshold
-            if (pose.keypoints[k].score >= minConfidence / 100f)
-            {
-                // Activate the current key point GameObject
-                keypoints[k].GetComponent<MeshRenderer>().enabled = true;
-            }
-            else
-            {
-                // Deactivate the current key point GameObject
-                keypoints[k].GetComponent<MeshRenderer>().enabled = false;
-            }
-
-            float xPos = pose.keypoints[k].position.x * scale;
-
-            // Calculate the Y-axis position
-            // Scale the Y coordinate up to the inputImage resolution and subtract it from the imageHeight
-            // Add the offset vector to refine the key point location
-            // Scale the position up to the videoTexture resolution
-            float yPos = (imageHeight - pose.keypoints[k].position.y) * scale;
-
-            if (videoTexture.width > videoTexture.height)
-            {
-                xPos *= unsqueezeScale;
-            }
-            else
-            {
-                yPos *= unsqueezeScale;
-            }
-
-            // Create a new position Vector3
-            // Set the z value to -1f to place it in front of the video screen
-            Vector3 newPos = new Vector3(xPos, yPos, -1f);
 
             // Update the current key point location
             keypoints[k].transform.position = newPos;
