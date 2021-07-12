@@ -124,8 +124,6 @@ public class PoseNet : MonoBehaviour
 
     private Tensor input;
 
-    PoseNetClass posenet = new PoseNetClass();
-
     PoseSkeleton[] skeletons;
 
 
@@ -324,22 +322,15 @@ public class PoseNet : MonoBehaviour
             // Determine the key point locations
             ProcessOutput(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer), stride);
 
-            GameObject[] gameObjects = new GameObject[skeletons[0].keypoints.Length];
-
-            for (int i = 0; i < gameObjects.Length; i++)
-            {
-                gameObjects[i] = skeletons[0].keypoints[i].gameObject;
-            }
-
             // Update the positions for the key point GameObjects
-            UpdateKeyPointPositions(singlePose, gameObjects, scale, unsqueezeScale);
+            UpdateKeyPointPositions(singlePose, skeletons[0].keypoints, scale, unsqueezeScale);
 
             skeletons[0].RenderSkeleton();
         }
         else
         {
             // Determine the key point locations
-            PoseNetClass.Pose[] poses = posenet.DecodeMultiplePoses(
+            PoseNetClass.Pose[] poses = PoseNetClass.DecodeMultiplePoses(
                 heatmaps, offsets,
                 displacementFWD,
                 displacementBWD,
@@ -349,15 +340,8 @@ public class PoseNet : MonoBehaviour
             int index = 0;
             foreach (PoseNetClass.Pose pose in poses)
             {
-                GameObject[] gameObjects = new GameObject[skeletons[index].keypoints.Length];
-
-                for (int i=0; i < gameObjects.Length; i++)
-                {
-                    gameObjects[i] = skeletons[index].keypoints[i].gameObject;
-                }
-
                 // Update the positions for the key point GameObjects
-                UpdateKeyPointPositions(pose, gameObjects, scale, unsqueezeScale);
+                UpdateKeyPointPositions(pose, skeletons[index].keypoints, scale, unsqueezeScale);
                 skeletons[index].RenderSkeleton();
 
                 index++;
@@ -500,13 +484,24 @@ public class PoseNet : MonoBehaviour
         return keypoint;
     }
 
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="imageDimemsion"></param>
+    /// <param name="position"></param>
+    /// <returns></returns>
     private float FlipCoords(int imageDimemsion, float position)
     {
         return imageDimemsion - position;
     }
 
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="keypoint"></param>
+    /// <param name="sourceScale"></param>
+    /// <param name="unsqueezeScale"></param>
+    /// <returns></returns>
     private Vector2 ScaleOutput(PoseNetClass.Keypoint keypoint, float sourceScale, float unsqueezeScale)
     {
         // Scale the position up to the videoTexture resolution
@@ -528,7 +523,7 @@ public class PoseNet : MonoBehaviour
     /// <summary>
     /// Update the positions for the key point GameObjects
     /// </summary>
-    private void UpdateKeyPointPositions(PoseNetClass.Pose pose, GameObject[] keypoints, float sourceScale, float unsqueezeScale)
+    private void UpdateKeyPointPositions(PoseNetClass.Pose pose, Transform[] keypoints, float sourceScale, float unsqueezeScale)
     {
 
         // Iterate through the key points
