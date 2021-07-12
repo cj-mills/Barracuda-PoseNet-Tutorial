@@ -126,6 +126,7 @@ public class PoseNet : MonoBehaviour
 
     PoseSkeleton[] skeletons;
 
+    PoseNetClass.Pose[] poses;
 
     // Start is called before the first frame update
     void Start()
@@ -319,33 +320,30 @@ public class PoseNet : MonoBehaviour
 
         if (estimationType == EstimationType.SinglePose)
         {
+            poses = new PoseNetClass.Pose[1];
+
             // Determine the key point locations
-            ProcessOutput(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer), stride);
-
-            // Update the positions for the key point GameObjects
-            UpdateKeyPointPositions(singlePose, skeletons[0].keypoints, scale, unsqueezeScale);
-
-            skeletons[0].RenderSkeleton();
+            poses[0].keypoints = ProcessOutput(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer), stride);
         }
         else
         {
             // Determine the key point locations
-            PoseNetClass.Pose[] poses = PoseNetClass.DecodeMultiplePoses(
+            poses = PoseNetClass.DecodeMultiplePoses(
                 heatmaps, offsets,
                 displacementFWD,
                 displacementBWD,
                 outputStride: (int)stride, maxPoseDetections: maxPoses,
                 scoreThreshold: scoreThreshold, nmsRadius: nmsRadius);
+        }
 
-            int index = 0;
-            foreach (PoseNetClass.Pose pose in poses)
-            {
-                // Update the positions for the key point GameObjects
-                UpdateKeyPointPositions(pose, skeletons[index].keypoints, scale, unsqueezeScale);
-                skeletons[index].RenderSkeleton();
+        int index = 0;
+        foreach (PoseNetClass.Pose pose in poses)
+        {
+            // Update the positions for the key point GameObjects
+            UpdateKeyPointPositions(pose, skeletons[index].keypoints, scale, unsqueezeScale);
+            skeletons[index].RenderSkeleton();
 
-                index++;
-            }
+            index++;
         }
 
         // Release GPU resources allocated for the Tensor
@@ -424,8 +422,10 @@ public class PoseNet : MonoBehaviour
     /// </summary>
     /// <param name="heatmaps">The heatmaps that indicate the confidence levels for key point locations</param>
     /// <param name="offsets">The offsets that refine the key point locations determined with the heatmaps</param>
-    private void ProcessOutput(Tensor heatmaps, Tensor offsets, float stride)
+    private PoseNetClass.Keypoint[] ProcessOutput(Tensor heatmaps, Tensor offsets, float stride)
     {
+        PoseNetClass.Keypoint[] keypoints = new PoseNetClass.Keypoint[heatmaps.channels];
+
         // Iterate through heatmaps
         for (int k = 0; k < numKeypoints; k++)
         {
@@ -442,8 +442,10 @@ public class PoseNet : MonoBehaviour
             keypoint.position.y = (keypoint.position.y * stride + offset_vector.y);
 
             // Update the estimated key point location in the source image
-            singlePose.keypoints[k] = keypoint;
+            keypoints[k] = keypoint;
         }
+
+        return keypoints;
     }
 
     /// <summary>
