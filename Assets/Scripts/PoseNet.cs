@@ -340,7 +340,7 @@ public class PoseNet : MonoBehaviour
         foreach (PoseNetClass.Pose pose in poses)
         {
             // Update the positions for the key point GameObjects
-            UpdateKeyPointPositions(pose, skeletons[index].keypoints, scale, unsqueezeScale);
+            UpdateKeyPointPositions(pose.keypoints, skeletons[index].keypoints, scale, unsqueezeScale);
             skeletons[index].RenderSkeleton();
 
             index++;
@@ -525,40 +525,39 @@ public class PoseNet : MonoBehaviour
     /// <summary>
     /// Update the positions for the key point GameObjects
     /// </summary>
-    private void UpdateKeyPointPositions(PoseNetClass.Pose pose, Transform[] keypoints, float sourceScale, float unsqueezeScale)
+    private void UpdateKeyPointPositions(PoseNetClass.Keypoint[] keypoints, Transform[] transforms, float sourceScale, float unsqueezeScale)
     {
 
         // Iterate through the key points
         for (int k = 0; k < numKeypoints; k++)
         {
             // Check if the current confidence value meets the confidence threshold
-            if (pose.keypoints[k].score >= minConfidence / 100f)
+            if (keypoints[k].score >= minConfidence / 100f)
             {
                 // Activate the current key point GameObject
-                keypoints[k].GetComponent<MeshRenderer>().enabled = true;
+                transforms[k].GetComponent<MeshRenderer>().enabled = true;
             }
             else
             {
                 // Deactivate the current key point GameObject
-                keypoints[k].GetComponent<MeshRenderer>().enabled = false;
+                transforms[k].GetComponent<MeshRenderer>().enabled = false;
             }
 
-            pose.keypoints[k].position = ScaleOutput(pose.keypoints[k], sourceScale, unsqueezeScale);
-            pose.keypoints[k].position.y = FlipCoords(videoTexture.height, pose.keypoints[k].position.y);
+            keypoints[k].position = ScaleOutput(keypoints[k], sourceScale, unsqueezeScale);
+            keypoints[k].position.y = FlipCoords(videoTexture.height, keypoints[k].position.y);
 
             // Mirror the x position if using a webcam
             if (useWebcam)
             {
-                pose.keypoints[k].position.x = FlipCoords(videoTexture.width,
-                    pose.keypoints[k].position.x);
+                keypoints[k].position.x = FlipCoords(videoTexture.width, keypoints[k].position.x);
             }
 
             // Create a new position Vector3
             // Set the z value to -1f to place it in front of the video screen
-            Vector3 newPos = new Vector3(pose.keypoints[k].position.x, pose.keypoints[k].position.y, -1f);
+            Vector3 newPos = new Vector3(keypoints[k].position.x, keypoints[k].position.y, -1f);
 
             // Update the current key point location
-            keypoints[k].transform.position = newPos;
+            transforms[k].position = newPos;
         }
     }
 
