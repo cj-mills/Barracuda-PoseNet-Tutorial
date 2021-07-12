@@ -49,8 +49,8 @@ public class PoseNetClass
       new Tuple<int, int>(partIds[x.Item1], partIds[x.Item2])
     ).ToArray();
 
-    public int[] parentToChildEdges = parentChildrenTuples.Select(x => x.Item2).ToArray();
-    public int[] childToParentEdges = parentChildrenTuples.Select(x => x.Item1).ToArray();
+    public static int[] parentToChildEdges = parentChildrenTuples.Select(x => x.Item2).ToArray();
+    public static int[] childToParentEdges = parentChildrenTuples.Select(x => x.Item1).ToArray();
 
 
     /// <summary>
@@ -139,7 +139,7 @@ public class PoseNetClass
     /// <param name="a"></param>
     /// <param name="b"></param>
     /// <returns></returns>
-    Vector2 AddVectors(Vector2 a, Vector2 b)
+    static Vector2 AddVectors(Vector2 a, Vector2 b)
     {
         return new Vector2(x: a.x + b.x, y: a.y + b.y);
     }
@@ -151,7 +151,7 @@ public class PoseNetClass
     /// <param name="outputStride"></param>
     /// <param name="offsets"></param>
     /// <returns></returns>
-    Vector2 GetImageCoords(
+    static Vector2 GetImageCoords(
         Part part, int outputStride, Tensor offsets)
     {
         Vector2 vec = GetOffsetPoint(part.heatmapY, part.heatmapX,
@@ -169,7 +169,7 @@ public class PoseNetClass
     /// <param name="b"></param>
     /// <param name="minConfidence"></param>
     /// <returns></returns>
-    bool EitherPointDoesntMeetConfidence(
+    static bool EitherPointDoesntMeetConfidence(
         float a, float b, float minConfidence)
     {
         return (a < minConfidence || b < minConfidence);
@@ -181,7 +181,7 @@ public class PoseNetClass
     /// <param name="keypoints"></param>
     /// <param name="minConfidence"></param>
     /// <returns></returns>
-    public Tuple<Keypoint, Keypoint>[] GetAdjacentKeyPoints(
+    public static Tuple<Keypoint, Keypoint>[] GetAdjacentKeyPoints(
            Keypoint[] keypoints, float minConfidence)
     {
 
@@ -202,7 +202,7 @@ public class PoseNetClass
     /// <param name="localMaximumRadius"></param>
     /// <param name="scores"></param>
     /// <returns></returns>
-    bool ScoreIsMaximumInLocalWindow(
+    static bool ScoreIsMaximumInLocalWindow(
         int keypointId, float score, int heatmapY, int heatmapX,
         int localMaximumRadius, Tensor scores)
     {
@@ -228,7 +228,7 @@ public class PoseNetClass
             }
         }
         return localMaximum;
-    }   
+    }
 
     /// <summary>
     /// 
@@ -238,7 +238,7 @@ public class PoseNetClass
     /// <param name="height"></param>
     /// <param name="width"></param>
     /// <returns></returns>
-    Vector2Int GetStridedIndexNearPoint(
+    static Vector2Int GetStridedIndexNearPoint(
         Vector2 point, int outputStride, int height,
         int width)
     {
@@ -256,7 +256,7 @@ public class PoseNetClass
     /// <param name="point"></param>
     /// <param name="displacements"></param>
     /// <returns></returns>
-    Vector2 GetDisplacement(int edgeId, Vector2Int point, Tensor displacements)
+    static Vector2 GetDisplacement(int edgeId, Vector2Int point, Tensor displacements)
     {
 
         int numEdges = (int)(displacements.channels / 2);
@@ -281,7 +281,7 @@ public class PoseNetClass
     /// <param name="outputStride"></param>
     /// <param name="displacements"></param>
     /// <returns></returns>
-    Keypoint TraverseToTargetKeypoint(
+    static Keypoint TraverseToTargetKeypoint(
         int edgeId, Keypoint sourceKeypoint, int targetKeypointId,
         Tensor scores, Tensor offsets, int outputStride,
         Tensor displacements)
@@ -329,7 +329,7 @@ public class PoseNetClass
     /// <param name="displacementsFwd"></param>
     /// <param name="displacementsBwd"></param>
     /// <returns></returns>
-    Keypoint[] DecodePose(PartWithScore root, Tensor scores, Tensor offsets,
+    static Keypoint[] DecodePose(PartWithScore root, Tensor scores, Tensor offsets,
         int outputStride, Tensor displacementsFwd,
         Tensor displacementsBwd)
     {
@@ -393,7 +393,7 @@ public class PoseNetClass
     /// <param name="y2"></param>
     /// <param name="x2"></param>
     /// <returns></returns>
-    float SquaredDistance(float y1, float x1, float y2, float x2)
+    static float SquaredDistance(float y1, float x1, float y2, float x2)
     {
         return (y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1);
     }
@@ -406,7 +406,7 @@ public class PoseNetClass
     /// <param name="vec"></param>
     /// <param name="keypointId"></param>
     /// <returns></returns>
-    bool WithinNmsRadiusOfCorrespondingPoint(
+    static bool WithinNmsRadiusOfCorrespondingPoint(
         List<Pose> poses, float squaredNmsRadius, Vector2 vec, int keypointId)
     {
         return poses.Any(pose =>
@@ -423,7 +423,7 @@ public class PoseNetClass
     /// <param name="squaredNmsRadius"></param>
     /// <param name="instanceKeypoints"></param>
     /// <returns></returns>
-    float GetInstanceScore(
+    static float GetInstanceScore(
         List<Pose> existingPoses, float squaredNmsRadius,
         Keypoint[] instanceKeypoints)
     {
@@ -442,7 +442,7 @@ public class PoseNetClass
     /// <param name="localMaximumRadius"></param>
     /// <param name="scores"></param>
     /// <returns></returns>
-    PriorityQueue<float, PartWithScore> BuildPartWithScoreQueue(
+    static PriorityQueue<float, PartWithScore> BuildPartWithScoreQueue(
         float scoreThreshold, int localMaximumRadius,
         Tensor scores)
     {
@@ -491,7 +491,7 @@ public class PoseNetClass
     /// <param name="scoreThreshold"></param>
     /// <param name="nmsRadius"></param>
     /// <returns></returns>
-    public Pose[] DecodeMultiplePoses(
+    public static Pose[] DecodeMultiplePoses(
         Tensor scores, Tensor offsets,
         Tensor displacementsFwd, Tensor displacementBwd,
         int outputStride, int maxPoseDetections,
