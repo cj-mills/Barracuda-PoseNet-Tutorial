@@ -59,7 +59,7 @@ public class PoseNet : MonoBehaviour
     public float scoreThreshold = 0.25f;
 
     [Tooltip("Non-maximum suppression part distance")]
-    [Range(0, 100)]
+    //[Range(0, 100)]
     public int nmsRadius = 20;
 
     [Tooltip("The model architecture used")]
@@ -273,11 +273,21 @@ public class PoseNet : MonoBehaviour
         ProcessOutput(engine);
 
 
-        for (int i = 0; i < poses.Length; i++)
+        for (int i = 0; i < skeletons.Length; i++)
         {
-            // Update the positions for the key point GameObjects
-            UpdateKeyPointPositions(poses[i].keypoints, skeletons[i].keypoints);
-            skeletons[i].RenderSkeleton();
+            if (i > poses.Length - 1)
+            {
+                skeletons[i].ToggleKeypoints(false);
+                skeletons[i].ToggleLines(false);
+            }
+            else
+            {
+                skeletons[i].ToggleLines(true);
+
+                // Update the positions for the key point GameObjects
+                UpdateKeyPointPositions(poses[i].keypoints, skeletons[i].keypoints);
+                skeletons[i].RenderSkeleton();
+            }
         }
 
         // Release GPU resources allocated for the Tensor
