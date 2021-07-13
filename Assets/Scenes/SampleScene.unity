@@ -341,7 +341,7 @@ MonoBehaviour:
   useWebcam: 0
   useGPU: 1
   inputScreen: {fileID: 613877718}
-  estimationType: 1
+  estimationType: 0
   maxPoses: 15
   scoreThreshold: 0.25
   nmsRadius: 125
