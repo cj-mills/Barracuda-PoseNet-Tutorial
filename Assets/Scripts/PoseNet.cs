@@ -131,15 +131,13 @@ public class PoseNet : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        maxPoses = (estimationType == EstimationType.SinglePose) ? 1 : maxPoses;
         skeletons = new PoseSkeleton[maxPoses];
-
-        maxPoses = estimationType == EstimationType.SinglePose ? 1 : maxPoses;
 
         for (int i = 0; i < maxPoses; i++)
         {
             skeletons[i] = new PoseSkeleton();
         }
-
 
         // Get a reference to the Video Player GameObject
         GameObject videoPlayer = GameObject.Find("Video Player");
@@ -275,18 +273,18 @@ public class PoseNet : MonoBehaviour
 
         for (int i = 0; i < skeletons.Length; i++)
         {
-            if (i > poses.Length - 1)
-            {
-                skeletons[i].ToggleKeypoints(false);
-                skeletons[i].ToggleLines(false);
-            }
-            else
+            if (i <= poses.Length - 1)
             {
                 skeletons[i].ToggleLines(true);
 
                 // Update the positions for the key point GameObjects
                 UpdateKeyPointPositions(poses[i].keypoints, skeletons[i].keypoints);
                 skeletons[i].RenderSkeleton();
+            }
+            else
+            {
+                skeletons[i].ToggleKeypoints(false);
+                skeletons[i].ToggleLines(false);
             }
         }
 
@@ -432,7 +430,7 @@ public class PoseNet : MonoBehaviour
         PoseNetClass.Keypoint[] keypoints = new PoseNetClass.Keypoint[heatmaps.channels];
 
         // Iterate through heatmaps
-        for (int k = 0; k < numKeypoints; k++)
+        for (int k = 0; k < heatmaps.channels; k++)
         {
             // Stores the highest confidence value found in the current heatmap
             float maxConfidence = 0f;
@@ -441,10 +439,10 @@ public class PoseNet : MonoBehaviour
             Vector2 coords = new Vector2();
 
             // Iterate through heatmap columns
-            for (int y = 0; y < heatmaps.shape.height; y++)
+            for (int y = 0; y < heatmaps.height; y++)
             {
                 // Iterate through column rows
-                for (int x = 0; x < heatmaps.shape.width; x++)
+                for (int x = 0; x < heatmaps.width; x++)
                 {
                     if (heatmaps[0, y, x, k] > maxConfidence)
                     {
