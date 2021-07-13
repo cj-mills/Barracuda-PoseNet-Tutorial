@@ -388,14 +388,12 @@ public class PoseNetClass
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="y1"></param>
-    /// <param name="x1"></param>
-    /// <param name="y2"></param>
-    /// <param name="x2"></param>
+    /// <param name="position1"></param>
+    /// <param name="position2"></param>
     /// <returns></returns>
-    static float SquaredDistance(float y1, float x1, float y2, float x2)
+    static float SquaredDistance(Vector2 position1, Vector2 position2)
     {
-        return (y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1);
+        return (position2 - position1).sqrMagnitude;
     }
 
     /// <summary>
@@ -410,9 +408,7 @@ public class PoseNetClass
         List<Pose> poses, float squaredNmsRadius, Vector2 vec, int keypointId)
     {
         return poses.Any(pose =>
-            SquaredDistance(vec.y, vec.x,
-                pose.keypoints[keypointId].position.y,
-                pose.keypoints[keypointId].position.x) <= squaredNmsRadius
+            SquaredDistance(vec, pose.keypoints[keypointId].position) <= squaredNmsRadius
         );
     }
 
