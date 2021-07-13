@@ -250,11 +250,8 @@ public class PoseNet : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (useWebcam)
-        {
-            // Copy webcamTexture to videoTexture
-            Graphics.Blit(webcamTexture, videoTexture);
-        }
+        // Copy webcamTexture to videoTexture if using webcam
+        if (useWebcam) { Graphics.Blit(webcamTexture, videoTexture); }
 
 
         if (imageWidth != rTex.width || imageHeight != rTex.height)
@@ -267,38 +264,28 @@ public class PoseNet : MonoBehaviour
         // Copy the src RenderTexture to the new rTex RenderTexture
         Graphics.Blit(videoTexture, rTex);
 
-
-        if (useGPU)
-        {
-            // Apply preprocessing steps
-            ProcessImage(rTex, preProcessFuncName);
-
-            // Create a Tensor of shape [1, processedImage.height, processedImage.width, 3]
-            input = new Tensor(rTex, channels: 3);
-        }
-        else
-        {
-            input = new Tensor(rTex, channels: 3);
-            float[] tensor_array = input.data.Download(input.shape);
-
-            if (modelType == ModelType.MobileNet)
-            {
-                PreprocessMobilenet(tensor_array);
-            }
-            else
-            {
-                PreprocessResnet(tensor_array);
-            }
-            input = new Tensor(input.shape.batch, 
-                               input.shape.height, 
-                               input.shape.width, 
-                               input.shape.channels, 
-                               tensor_array);
-        }
+        ProcessImage(rTex);
 
         // Execute neural network with the provided input
         engine.Execute(input);
 
+
+        ProcessOutput(engine);
+
+
+        for (int i = 0; i < poses.Length; i++)
+        {
+            // Update the positions for the key point GameObjects
+            UpdateKeyPointPositions(poses[i].keypoints, skeletons[i].keypoints);
+            skeletons[i].RenderSkeleton();
+        }
+
+        // Release GPU resources allocated for the Tensor
+        input.Dispose();
+    }
+
+    private void ProcessOutput(IWorker engine)
+    {
         Tensor heatmaps = engine.PeekOutput(predictionLayer);
         Tensor offsets = engine.PeekOutput(offsetsLayer);
         Tensor displacementFWD = engine.PeekOutput(displacementFWDLayer);
@@ -308,22 +295,12 @@ public class PoseNet : MonoBehaviour
         float stride = (imageHeight - 1) / (heatmaps.shape.height - 1);
         stride -= (stride % 8);
 
-        // The smallest dimension of the videoTexture
-        int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
-        // The largest dimension of the videoTexture
-        int maxDimension = Mathf.Max(videoTexture.width, videoTexture.height);
-
-        // The value used to scale the key point locations up to the source resolution
-        float scale = (float)minDimension / (float)Mathf.Min(imageWidth, imageHeight);
-        // The value used to compensate for resizing the source image to a square aspect ratio
-        float unsqueezeScale = (float)maxDimension / (float)minDimension;
-
         if (estimationType == EstimationType.SinglePose)
         {
             poses = new PoseNetClass.Pose[1];
 
             // Determine the key point locations
-            poses[0].keypoints = ProcessOutput(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer), stride);
+            poses[0].keypoints = ProcessSinglePose(heatmaps, offsets, stride);
         }
         else
         {
@@ -336,23 +313,41 @@ public class PoseNet : MonoBehaviour
                 scoreThreshold: scoreThreshold, nmsRadius: nmsRadius);
         }
 
-        int index = 0;
-        foreach (PoseNetClass.Pose pose in poses)
-        {
-            // Update the positions for the key point GameObjects
-            UpdateKeyPointPositions(pose.keypoints, skeletons[index].keypoints, scale, unsqueezeScale);
-            skeletons[index].RenderSkeleton();
-
-            index++;
-        }
-
-        // Release GPU resources allocated for the Tensor
-        input.Dispose();
-
         heatmaps.Dispose();
         offsets.Dispose();
         displacementFWD.Dispose();
         displacementBWD.Dispose();
+    }
+
+    private void ProcessImage(RenderTexture image)
+    {
+        if (useGPU)
+        {
+            // Apply preprocessing steps
+            ProcessImageGPU(image, preProcessFuncName);
+
+            // Create a Tensor of shape [1, processedImage.height, processedImage.width, 3]
+            input = new Tensor(image, channels: 3);
+        }
+        else
+        {
+            input = new Tensor(image, channels: 3);
+            float[] tensor_array = input.data.Download(input.shape);
+
+            if (modelType == ModelType.MobileNet)
+            {
+                PreprocessMobilenet(tensor_array);
+            }
+            else
+            {
+                PreprocessResnet(tensor_array);
+            }
+            input = new Tensor(input.shape.batch,
+                               input.shape.height,
+                               input.shape.width,
+                               input.shape.channels,
+                               tensor_array);
+        }
     }
 
     /// <summary>
@@ -361,7 +356,7 @@ public class PoseNet : MonoBehaviour
     /// <param name="image"></param>
     /// <param name="functionName"></param>
     /// <returns></returns>
-    private void ProcessImage(RenderTexture image, string functionName)
+    private void ProcessImageGPU(RenderTexture image, string functionName)
     {
         // Specify the number of threads on the GPU
         int numthreads = 8;
@@ -422,7 +417,7 @@ public class PoseNet : MonoBehaviour
     /// </summary>
     /// <param name="heatmaps">The heatmaps that indicate the confidence levels for key point locations</param>
     /// <param name="offsets">The offsets that refine the key point locations determined with the heatmaps</param>
-    private PoseNetClass.Keypoint[] ProcessOutput(Tensor heatmaps, Tensor offsets, float stride)
+    private PoseNetClass.Keypoint[] ProcessSinglePose(Tensor heatmaps, Tensor offsets, float stride)
     {
         PoseNetClass.Keypoint[] keypoints = new PoseNetClass.Keypoint[heatmaps.channels];
 
@@ -525,8 +520,18 @@ public class PoseNet : MonoBehaviour
     /// <summary>
     /// Update the positions for the key point GameObjects
     /// </summary>
-    private void UpdateKeyPointPositions(PoseNetClass.Keypoint[] keypoints, Transform[] transforms, float sourceScale, float unsqueezeScale)
+    private void UpdateKeyPointPositions(PoseNetClass.Keypoint[] keypoints, Transform[] transforms)
     {
+        // The smallest dimension of the videoTexture
+        int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
+        // The largest dimension of the videoTexture
+        int maxDimension = Mathf.Max(videoTexture.width, videoTexture.height);
+
+        // The value used to scale the key point locations up to the source resolution
+        float scale = (float)minDimension / (float)Mathf.Min(input.width, input.height);
+        // The value used to compensate for resizing the source image to a square aspect ratio
+        float unsqueezeScale = (float)maxDimension / (float)minDimension;
+
 
         // Iterate through the key points
         for (int k = 0; k < numKeypoints; k++)
@@ -543,7 +548,7 @@ public class PoseNet : MonoBehaviour
                 transforms[k].GetComponent<MeshRenderer>().enabled = false;
             }
 
-            keypoints[k].position = ScaleOutput(keypoints[k], sourceScale, unsqueezeScale);
+            keypoints[k].position = ScaleOutput(keypoints[k], scale, unsqueezeScale);
             keypoints[k].position.y = FlipCoords(videoTexture.height, keypoints[k].position.y);
 
             // Mirror the x position if using a webcam
