@@ -444,22 +444,22 @@ public class PoseNetClass
     {
         PriorityQueue<float, PartWithScore> queue = new PriorityQueue<float, PartWithScore>();
 
-        for (int k = 0; k < heatmaps.channels; k++)
+        for (int c = 0; c < heatmaps.channels; c++)
         {
             for (int y = 0; y < heatmaps.height; y++)
             {
                 for (int x = 0; x < heatmaps.width; x++)
                 {
-                    float score = heatmaps[0, y, x, k];
+                    float score = heatmaps[0, y, x, c];
 
                     // Only consider parts with score greater or equal to threshold as
                     // root candidates.
                     if (score < scoreThreshold) { continue; }
 
                     // Only consider keypoints whose score is maximum in a local window.
-                    if (ScoreIsMaximumInLocalWindow(k, score, y, x, localMaximumRadius, heatmaps))
+                    if (ScoreIsMaximumInLocalWindow(c, score, y, x, localMaximumRadius, heatmaps))
                     {
-                        queue.Push(score, new PartWithScore(score, new Part(x, y, k)));
+                        queue.Push(score, new PartWithScore(score, new Part(x, y, c)));
                     }
                 }
             }
