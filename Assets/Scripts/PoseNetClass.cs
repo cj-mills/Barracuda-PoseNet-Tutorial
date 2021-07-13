@@ -440,33 +440,26 @@ public class PoseNetClass
     /// <returns></returns>
     static PriorityQueue<float, PartWithScore> BuildPartWithScoreQueue(
         float scoreThreshold, int localMaximumRadius,
-        Tensor scores)
+        Tensor heatmaps)
     {
         PriorityQueue<float, PartWithScore> queue = new PriorityQueue<float, PartWithScore>();
 
-        for (int k = 0; k < scores.channels; k++)
+        for (int k = 0; k < heatmaps.channels; k++)
         {
-            for (int y = 0; y < scores.height; y++)
+            for (int y = 0; y < heatmaps.height; y++)
             {
-                for (int x = 0; x < scores.width; x++)
+                for (int x = 0; x < heatmaps.width; x++)
                 {
-                    float score = scores[0, y, x, k];
+                    float score = heatmaps[0, y, x, k];
 
                     // Only consider parts with score greater or equal to threshold as
                     // root candidates.
-                    if (score < scoreThreshold)
-                    {
-                        continue;
-                    }
+                    if (score < scoreThreshold) { continue; }
 
                     // Only consider keypoints whose score is maximum in a local window.
-                    if (ScoreIsMaximumInLocalWindow(
-                            k, score, y, x, localMaximumRadius,
-                            scores))
+                    if (ScoreIsMaximumInLocalWindow(k, score, y, x, localMaximumRadius, heatmaps))
                     {
-                        queue.Push(score, new PartWithScore(score,
-                            new Part(x, y, k)
-                        ));
+                        queue.Push(score, new PartWithScore(score, new Part(x, y, k)));
                     }
                 }
             }
@@ -478,7 +471,7 @@ public class PoseNetClass
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="scores"></param>
+    /// <param name="heatmaps"></param>
     /// <param name="offsets"></param>
     /// <param name="displacementsFwd"></param>
     /// <param name="displacementBwd"></param>
@@ -488,16 +481,18 @@ public class PoseNetClass
     /// <param name="nmsRadius"></param>
     /// <returns></returns>
     public static Pose[] DecodeMultiplePoses(
-        Tensor scores, Tensor offsets,
+        Tensor heatmaps, Tensor offsets,
         Tensor displacementsFwd, Tensor displacementBwd,
         int outputStride, int maxPoseDetections,
         float scoreThreshold, int nmsRadius = 20)
     {
+        // Stores the final poses
         List<Pose> poses = new List<Pose>();
+        // 
         float squaredNmsRadius = (float)nmsRadius * nmsRadius;
 
         PriorityQueue<float, PartWithScore> queue = BuildPartWithScoreQueue(
-            scoreThreshold, kLocalMaximumRadius, scores);
+            scoreThreshold, kLocalMaximumRadius, heatmaps);
 
         while (poses.Count < maxPoseDetections && queue.Count > 0)
         {
@@ -517,7 +512,7 @@ public class PoseNetClass
 
             // Start a new detection instance at the position of the root.
             Keypoint[] keypoints = DecodePose(
-                root, scores, offsets, outputStride, displacementsFwd,
+                root, heatmaps, offsets, outputStride, displacementsFwd,
                 displacementBwd);
 
             float score = GetInstanceScore(poses, squaredNmsRadius, keypoints);
