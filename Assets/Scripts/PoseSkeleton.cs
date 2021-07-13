@@ -67,6 +67,29 @@ public class PoseSkeleton
         InitializeSkeleton();
     }
 
+
+    public void ToggleKeypoints(bool show)
+    {
+        foreach(Transform transform in keypoints)
+        {
+            transform.GetComponent<MeshRenderer>().enabled = show;
+        }
+    }
+
+    public void ToggleLines(bool show)
+    {
+        foreach (LineRenderer lineRenderer in lineRenderers)
+        {
+            lineRenderer.enabled = show;
+        }
+    }
+
+    public void HideLines()
+    {
+
+    }
+
+
     /// <summary>
     /// Create a line between the key point specified by the start and end point indices
     /// </summary>
