@@ -424,61 +424,44 @@ public class PoseNet : MonoBehaviour
         // Iterate through heatmaps
         for (int k = 0; k < numKeypoints; k++)
         {
-            // Get the location of the current key point and its associated confidence value
-            PoseNetClass.Keypoint keypoint = LocateKeyPointIndex(heatmaps, k);
+            // Stores the highest confidence value found in the current heatmap
+            float maxConfidence = 0f;
+
+            // The (x, y) coordinates containing the confidence value in the current heatmap
+            Vector2 coords = new Vector2();
+
+            // Iterate through heatmap columns
+            for (int y = 0; y < heatmaps.shape.height; y++)
+            {
+                // Iterate through column rows
+                for (int x = 0; x < heatmaps.shape.width; x++)
+                {
+                    if (heatmaps[0, y, x, k] > maxConfidence)
+                    {
+                        // Update the highest confidence for the current key point
+                        maxConfidence = heatmaps[0, y, x, k];
+
+                        // Update the estimated key point coordinates
+                        coords.x = x;
+                        coords.y = y;
+                    }
+                }
+            }
 
             // The accompanying offset vector for the current coords
-            Vector2 offset_vector = PoseNetClass.GetOffsetPoint((int)keypoint.position.y, (int)keypoint.position.x, k, offsets);
+            Vector2 offset_vector = PoseNetClass.GetOffsetPoint((int)coords.y, (int)coords.x, k, offsets);
 
             // Calcluate the position
             // Scale the coordinates up to the inputImage resolution
             // Add the offset vectors to refine the key point location
-            keypoint.position.x = (keypoint.position.x * stride + offset_vector.x);
-            keypoint.position.y = (keypoint.position.y * stride + offset_vector.y);
+            coords.x = (coords.x * stride + offset_vector.x);
+            coords.y = (coords.y * stride + offset_vector.y);
 
             // Update the estimated key point location in the source image
-            keypoints[k] = keypoint;
+            keypoints[k] = new PoseNetClass.Keypoint(maxConfidence, coords, PoseNetClass.partNames[k]);
         }
 
         return keypoints;
-    }
-
-    /// <summary>
-    /// Find the heatmap index that contains the highest confidence value and the associated offset vector
-    /// </summary>
-    /// <param name="heatmaps"></param>
-    /// <param name="offsets"></param>
-    /// <param name="keypointIndex"></param>
-    /// <returns>The heatmap index, offset vector, and associated confidence value</returns>
-    private PoseNetClass.Keypoint LocateKeyPointIndex(Tensor heatmaps, int keypointIndex)
-    {
-        // Stores the highest confidence value found in the current heatmap
-        float maxConfidence = 0f;
-
-        // The (x, y) coordinates containing the confidence value in the current heatmap
-        Vector2 coords = new Vector2();
-
-        // Iterate through heatmap columns
-        for (int y = 0; y < heatmaps.shape.height; y++)
-        {
-            // Iterate through column rows
-            for (int x = 0; x < heatmaps.shape.width; x++)
-            {
-                if (heatmaps[0, y, x, keypointIndex] > maxConfidence)
-                {
-                    // Update the highest confidence for the current key point
-                    maxConfidence = heatmaps[0, y, x, keypointIndex];
-
-                    // Update the estimated key point coordinates
-                    coords.x = x;
-                    coords.y = y;
-                }
-            }
-        }
-
-        PoseNetClass.Keypoint keypoint = new PoseNetClass.Keypoint(maxConfidence, coords, 
-                                                                   PoseNetClass.partNames[keypointIndex]);
-        return keypoint;
     }
 
     /// <summary>
