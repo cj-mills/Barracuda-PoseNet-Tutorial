@@ -246,7 +246,7 @@ public class PoseSkeleton
     /// Update the positions for the key point GameObjects
     /// </summary>
     public void UpdateKeyPointPositions(PoseNetClass.Keypoint[] keypoints,
-        float sourceScale, float unsqueezeScale, Vector2 sourceDims, bool mirrorImage, float minConfidence)
+        float sourceScale, float unsqueezeScale, Vector2Int sourceDims, bool mirrorImage, float minConfidence)
     {
 
         // Iterate through the key points
@@ -265,10 +265,10 @@ public class PoseSkeleton
             }
 
             Vector2 coords = ScaleOutput(keypoints[k].position, sourceDims, sourceScale, unsqueezeScale);
-            coords.y = FlipCoords((int)sourceDims.y, coords.y);
+            coords.y = FlipCoords(sourceDims.y, coords.y);
 
             // Mirror the x position if using a webcam
-            if (mirrorImage) coords.x = FlipCoords((int)sourceDims.x, coords.x);
+            if (mirrorImage) coords.x = FlipCoords(sourceDims.x, coords.x);
 
             // Update the current key point location
             // Set the z value to -1f to place it in front of the video screen
