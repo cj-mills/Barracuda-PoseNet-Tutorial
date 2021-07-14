@@ -7,8 +7,6 @@ using Unity.Barracuda;
 
 public class PoseNetClass
 {
-    const int kLocalMaximumRadius = 1;
-
     public static string[] partNames = new string[]{
             "nose", "leftEye", "rightEye", "leftEar", "rightEar", "leftShoulder",
             "rightShoulder", "leftElbow", "rightElbow", "leftWrist", "rightWrist",
@@ -190,44 +188,6 @@ public class PoseNetClass
                 keypoints[x.Item1].score, keypoints[x.Item2].score, minConfidence))
            .Select(x => new Tuple<Keypoint, Keypoint>(keypoints[x.Item1], keypoints[x.Item2])).ToArray();
 
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="keypointId"></param>
-    /// <param name="score"></param>
-    /// <param name="heatmapY"></param>
-    /// <param name="heatmapX"></param>
-    /// <param name="localMaximumRadius"></param>
-    /// <param name="scores"></param>
-    /// <returns></returns>
-    static bool ScoreIsMaximumInLocalWindow(
-        int keypointId, float score, int heatmapY, int heatmapX,
-        int localMaximumRadius, Tensor scores)
-    {
-        bool localMaximum = true;
-        int yStart = Mathf.Max(heatmapY - localMaximumRadius, 0);
-        int yEnd = Mathf.Min(heatmapY + localMaximumRadius + 1, scores.height);
-
-        for (int yCurrent = yStart; yCurrent < yEnd; ++yCurrent)
-        {
-            int xStart = Mathf.Max(heatmapX - localMaximumRadius, 0);
-            int xEnd = Mathf.Min(heatmapX + localMaximumRadius + 1, scores.width);
-            for (int xCurrent = xStart; xCurrent < xEnd; ++xCurrent)
-            {
-                if (scores[0, yCurrent, xCurrent, keypointId] > score)
-                {
-                    localMaximum = false;
-                    break;
-                }
-            }
-            if (!localMaximum)
-            {
-                break;
-            }
-        }
-        return localMaximum;
     }
 
     /// <summary>
@@ -431,6 +391,43 @@ public class PoseNetClass
         return notOverlappedKeypointScores / instanceKeypoints.Length;
     }
 
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="keypointId"></param>
+    /// <param name="score"></param>
+    /// <param name="heatmapY"></param>
+    /// <param name="heatmapX"></param>
+    /// <param name="localMaximumRadius"></param>
+    /// <param name="scores"></param>
+    /// <returns></returns>
+    static bool ScoreIsMaximumInLocalWindow(int keypointId, float score, int heatmapY, int heatmapX,
+        int localMaximumRadius, Tensor heatmaps)
+    {
+        bool localMaximum = true;
+        int yStart = Mathf.Max(heatmapY - localMaximumRadius, 0);
+        int yEnd = Mathf.Min(heatmapY + localMaximumRadius + 1, heatmaps.height);
+
+        for (int yCurrent = yStart; yCurrent < yEnd; ++yCurrent)
+        {
+            int xStart = Mathf.Max(heatmapX - localMaximumRadius, 0);
+            int xEnd = Mathf.Min(heatmapX + localMaximumRadius + 1, heatmaps.width);
+            
+            for (int xCurrent = xStart; xCurrent < xEnd; ++xCurrent)
+            {
+                if (heatmaps[0, yCurrent, xCurrent, keypointId] > score)
+                {
+                    localMaximum = false;
+                    break;
+                }
+            }
+            if (!localMaximum) break;
+        }
+        return localMaximum;
+    }
+
+
     /// <summary>
     /// 
     /// </summary>
@@ -438,11 +435,9 @@ public class PoseNetClass
     /// <param name="localMaximumRadius"></param>
     /// <param name="scores"></param>
     /// <returns></returns>
-    static PriorityQueue<float, PartWithScore> BuildPartWithScoreQueue(
-        float scoreThreshold, int localMaximumRadius,
-        Tensor heatmaps)
+    static List<PartWithScore> BuildPartWithScoreQueue(float scoreThreshold, int localMaximumRadius, Tensor heatmaps)
     {
-        PriorityQueue<float, PartWithScore> queue = new PriorityQueue<float, PartWithScore>();
+        List<PartWithScore> list = new List<PartWithScore>();
 
         for (int c = 0; c < heatmaps.channels; c++)
         {
@@ -454,18 +449,18 @@ public class PoseNetClass
 
                     // Only consider parts with score greater or equal to threshold as
                     // root candidates.
-                    if (score < scoreThreshold) { continue; }
+                    if (score < scoreThreshold) continue;
 
                     // Only consider keypoints whose score is maximum in a local window.
                     if (ScoreIsMaximumInLocalWindow(c, score, y, x, localMaximumRadius, heatmaps))
                     {
-                        queue.Push(score, new PartWithScore(score, new Part(x, y, c)));
+                        list.Add(new PartWithScore(score, new Part(x, y, c)));
                     }
                 }
             }
         }
 
-        return queue;
+        return list;
     }
 
     /// <summary>
@@ -484,25 +479,26 @@ public class PoseNetClass
         Tensor heatmaps, Tensor offsets,
         Tensor displacementsFwd, Tensor displacementBwd,
         int outputStride, int maxPoseDetections,
-        float scoreThreshold, int nmsRadius = 20)
+        float scoreThreshold, int nmsRadius = 20, int kLocalMaximumRadius = 1)
     {
         // Stores the final poses
         List<Pose> poses = new List<Pose>();
         // 
         float squaredNmsRadius = (float)nmsRadius * nmsRadius;
 
-        PriorityQueue<float, PartWithScore> queue = BuildPartWithScoreQueue(
-            scoreThreshold, kLocalMaximumRadius, heatmaps);
 
-        while (poses.Count < maxPoseDetections && queue.Count > 0)
+        List<PartWithScore> list = BuildPartWithScoreQueue(scoreThreshold, kLocalMaximumRadius, heatmaps);
+        list = list.OrderByDescending(x => x.score).ToList();
+        
+        while (poses.Count < maxPoseDetections && list.Count > 0)
         {
-            PartWithScore root = queue.Pop().Value;
+            PartWithScore root = list[0];
+            list.RemoveAt(0);
 
             // Part-based non-maximum suppression: We reject a root candidate if it
             // is within a disk of `nmsRadius` pixels from the corresponding part of
             // a previously detected instance.
-            Vector2 rootImageCoords =
-                GetImageCoords(root.part, outputStride, offsets);
+            Vector2 rootImageCoords = GetImageCoords(root.part, outputStride, offsets);
 
             if (WithinNmsRadiusOfCorrespondingPoint(
                     poses, squaredNmsRadius, rootImageCoords, root.part.id))
