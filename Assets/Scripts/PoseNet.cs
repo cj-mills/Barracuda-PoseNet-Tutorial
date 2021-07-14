@@ -62,7 +62,8 @@ public class PoseNet : MonoBehaviour
     //[Range(0, 100)]
     public int nmsRadius = 20;
 
-    [Tooltip("")]
+    [Tooltip("A point (y, x) is considered as root part candidate if its score is a " + 
+        "maximum in a window |y - y'| <= kLocalMaximumRadius, |x - x'| <=  kLocalMaximumRadius")]
     public int kLocalMaximumRadius = 1;
 
     [Tooltip("The model architecture used")]
