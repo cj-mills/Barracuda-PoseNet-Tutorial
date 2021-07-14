@@ -345,6 +345,7 @@ MonoBehaviour:
   maxPoses: 15
   scoreThreshold: 0.25
   nmsRadius: 125
+  kLocalMaximumRadius: 1
   modelType: 1
   mobileNetModelAsset: {fileID: 5022602860645237092, guid: e3ca9630dbbfd8c458d4144a509b1f81,
     type: 3}
@@ -391,7 +392,7 @@ VideoPlayer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1245939431}
   m_Enabled: 1
-  m_VideoClip: {fileID: 32900000, guid: fb9c120e88320ad479db16c805ad5aa9, type: 3}
+  m_VideoClip: {fileID: 32900000, guid: 16fa76e0198730d48833f1f30075aebf, type: 3}
   m_TargetCameraAlpha: 1
   m_TargetCamera3DLayout: 0
   m_TargetCamera: {fileID: 0}
