@@ -141,14 +141,14 @@ public class PoseNetClass
     public static Vector2 GetImageCoords(Part part, int stride, Tensor offsets)
     {
         // The accompanying offset vector for the current coords
-        Vector2 offset_vector = GetOffsetVector(part.heatmapY, part.heatmapX,
+        Vector2 offsetVector = GetOffsetVector(part.heatmapY, part.heatmapX,
                                  part.id, offsets);
 
         Vector2 coords = new Vector2();
         // Scale the coordinates up to the inputImage resolution
         // Add the offset vectors to refine the key point location
-        coords.x = (part.heatmapX * stride + offset_vector.x);
-        coords.y = (part.heatmapY * stride + offset_vector.y);
+        coords.x = (part.heatmapX * stride + offsetVector.x);
+        coords.y = (part.heatmapY * stride + offsetVector.y);
 
         return coords;
     }
@@ -255,7 +255,7 @@ public class PoseNetClass
         Vector2Int displacedPointIndices =
             GetStridedIndexNearPoint(displacedPoint, stride, height, width);
 
-        Vector2 offsetPoint = GetOffsetVector(
+        Vector2 offsetVector = GetOffsetVector(
                 displacedPointIndices.y, displacedPointIndices.x, targetKeypointId,
                 offsets);
 
@@ -265,7 +265,7 @@ public class PoseNetClass
         Vector2 targetKeypoint = new Vector2(
                     x: displacedPointIndices.x * stride,
                     y: displacedPointIndices.y * stride)
-                + new Vector2(x: offsetPoint.x, y: offsetPoint.y);
+                + new Vector2(x: offsetVector.x, y: offsetVector.y);
 
         return new Keypoint(score, targetKeypoint, partNames[targetKeypointId]);
     }
