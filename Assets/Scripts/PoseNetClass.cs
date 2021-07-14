@@ -83,12 +83,10 @@ public class PoseNetClass
     public struct Pose
     {
         public Keypoint[] keypoints;
-        public float score;
 
-        public Pose(Keypoint[] keypoints, float score)
+        public Pose(Keypoint[] keypoints)
         {
             this.keypoints = keypoints;
-            this.score = score;
         }
     }
 
@@ -293,31 +291,10 @@ public class PoseNetClass
         List<Pose> poses, float squaredNmsRadius, Vector2 vec, int keypointId)
     {
         // SquaredDistance
-        return poses.Any(pose => (vec - pose.keypoints[keypointId].position).sqrMagnitude <= squaredNmsRadius
-        );
+        return poses.Any(pose => (vec - pose.keypoints[keypointId].position).sqrMagnitude <= squaredNmsRadius);
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="existingPoses"></param>
-    /// <param name="squaredNmsRadius"></param>
-    /// <param name="instanceKeypoints"></param>
-    /// <returns></returns>
-    static float GetInstanceScore(
-        List<Pose> existingPoses, float squaredNmsRadius,
-        Keypoint[] instanceKeypoints)
-    {
-
-        float notOverlappedKeypointScores = instanceKeypoints
-           .Where((x, id) => 
-           !WithinNmsRadiusOfCorrespondingPoint(existingPoses, squaredNmsRadius, x.position, id))
-           .Sum(x => x.score);
-
-        return notOverlappedKeypointScores / instanceKeypoints.Length;
-    }
-
-
+    
     /// <summary>
     /// 
     /// </summary>
@@ -437,8 +414,7 @@ public class PoseNetClass
                 root, heatmaps, offsets, stride, displacementsFwd,
                 displacementBwd);
 
-            float score = GetInstanceScore(poses, squaredNmsRadius, keypoints);
-            poses.Add(new Pose(keypoints, score));
+            poses.Add(new Pose(keypoints));
         }
 
         return poses.ToArray();
