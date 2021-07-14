@@ -15,37 +15,26 @@ public class PoseNetClass
 
     public static int NUM_KEYPOINTS = partNames.Length;
 
-    public static Dictionary<String, int> partIds = partNames
-        .Select((k, v) => new { k, v })
-        .ToDictionary(p => p.k, p => p.v);
-
-    public static Tuple<string, string>[] connectedPartNames = new Tuple<string, string>[] {
-                Tuple.Create(partNames[11], partNames[5]), Tuple.Create(partNames[7], partNames[5]),
-                Tuple.Create(partNames[7], partNames[9]), Tuple.Create(partNames[11], partNames[13]),
-                Tuple.Create(partNames[13], partNames[15]), Tuple.Create(partNames[12], partNames[6]),
-                Tuple.Create(partNames[8], partNames[6]), Tuple.Create(partNames[8], partNames[10]),
-                Tuple.Create(partNames[12], partNames[14]), Tuple.Create(partNames[14], partNames[16]),
-                Tuple.Create(partNames[5], partNames[6]), Tuple.Create(partNames[11], partNames[12])
+    public static Tuple<int, int>[] connectedPartIndices = new Tuple<int, int>[] {
+                Tuple.Create(11, 5), Tuple.Create(7, 5),
+                Tuple.Create(7, 9), Tuple.Create(11, 13),
+                Tuple.Create(13, 15), Tuple.Create(12, 6),
+                Tuple.Create(8, 6), Tuple.Create(8, 10),
+                Tuple.Create(12, 14), Tuple.Create(14, 16),
+                Tuple.Create(5, 6), Tuple.Create(11, 12)
             };
 
-    public static Tuple<string, string>[] poseChain = new Tuple<string, string>[]{
-                Tuple.Create(partNames[0], partNames[1]), Tuple.Create(partNames[1], partNames[3]), 
-                Tuple.Create(partNames[0], partNames[2]), Tuple.Create(partNames[2], partNames[4]), 
-                Tuple.Create(partNames[0], partNames[5]), Tuple.Create(partNames[5], partNames[7]), 
-                Tuple.Create(partNames[7], partNames[9]), Tuple.Create(partNames[5], partNames[11]), 
-                Tuple.Create(partNames[11], partNames[13]), Tuple.Create(partNames[13], partNames[15]), 
-                Tuple.Create(partNames[0], partNames[6]), Tuple.Create(partNames[6], partNames[8]), 
-                Tuple.Create(partNames[8], partNames[10]), Tuple.Create(partNames[6], partNames[12]), 
-                Tuple.Create(partNames[12], partNames[14]), Tuple.Create(partNames[14], partNames[16])
+    public static Tuple<int, int>[] parentChildrenTuples = new Tuple<int, int>[]{
+                Tuple.Create(0, 1), Tuple.Create(1, 3),
+                Tuple.Create(0, 2), Tuple.Create(2, 4),
+                Tuple.Create(0, 5), Tuple.Create(5, 7),
+                Tuple.Create(7, 9), Tuple.Create(5, 11),
+                Tuple.Create(11, 13), Tuple.Create(13, 15),
+                Tuple.Create(0, 6), Tuple.Create(6, 8),
+                Tuple.Create(8, 10), Tuple.Create(6, 12),
+                Tuple.Create(12, 14), Tuple.Create(14, 16)
             };
 
-    public static Tuple<int, int>[] connectedPartIndices = connectedPartNames.Select(x =>
-      new Tuple<int, int>(partIds[x.Item1], partIds[x.Item2])
-    ).ToArray();
-
-    public static Tuple<int, int>[] parentChildrenTuples = poseChain.Select(x =>
-      new Tuple<int, int>(partIds[x.Item1], partIds[x.Item2])
-    ).ToArray();
 
     public static int[] parentToChildEdges = parentChildrenTuples.Select(x => x.Item2).ToArray();
     public static int[] childToParentEdges = parentChildrenTuples.Select(x => x.Item1).ToArray();
@@ -57,30 +46,18 @@ public class PoseNetClass
     public struct PartWithScore
     {
         public float score;
-        public Part part;
-
-        public PartWithScore(float score, Part part)
-        {
-            this.score = score;
-            this.part = part;
-        }
-
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    public struct Part
-    {
         public int heatmapX;
         public int heatmapY;
         public int id;
-        public Part(int heatmapX, int heatmapY, int id)
+
+        public PartWithScore(float score, int heatmapX, int heatmapY, int id)
         {
+            this.score = score;
             this.heatmapX = heatmapX;
             this.heatmapY = heatmapY;
             this.id = id;
         }
+
     }
 
     /// <summary>
@@ -138,7 +115,7 @@ public class PoseNetClass
     /// <param name="stride"></param>
     /// <param name="offsets"></param>
     /// <returns></returns>
-    public static Vector2 GetImageCoords(Part part, int stride, Tensor offsets)
+    public static Vector2 GetImageCoords(PartWithScore part, int stride, Tensor offsets)
     {
         // The accompanying offset vector for the current coords
         Vector2 offsetVector = GetOffsetVector(part.heatmapY, part.heatmapX,
@@ -291,7 +268,7 @@ public class PoseNetClass
         Keypoint[] instanceKeypoints = new Keypoint[numParts];
 
         // Start a new detection instance at the position of the root.
-        Part rootPart = root.part;
+        PartWithScore rootPart = root;
         float rootScore = root.score;
         Vector2 rootPoint = GetImageCoords(rootPart, stride, offsets);
 
@@ -445,7 +422,7 @@ public class PoseNetClass
                     // Only consider keypoints whose score is maximum in a local window.
                     if (ScoreIsMaximumInLocalWindow(c, score, y, x, localMaximumRadius, heatmaps))
                     {
-                        list.Add(new PartWithScore(score, new Part(x, y, c)));
+                        list.Add(new PartWithScore(score, x, y, c));
                     }
                 }
             }
@@ -489,10 +466,10 @@ public class PoseNetClass
             // Part-based non-maximum suppression: We reject a root candidate if it
             // is within a disk of `nmsRadius` pixels from the corresponding part of
             // a previously detected instance.
-            Vector2 rootImageCoords = GetImageCoords(root.part, stride, offsets);
+            Vector2 rootImageCoords = GetImageCoords(root, stride, offsets);
 
             if (WithinNmsRadiusOfCorrespondingPoint(
-                    poses, squaredNmsRadius, rootImageCoords, root.part.id))
+                    poses, squaredNmsRadius, rootImageCoords, root.id))
             {
                 continue;
             }
