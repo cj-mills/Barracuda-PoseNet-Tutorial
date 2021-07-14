@@ -133,35 +133,6 @@ public class PoseNetClass
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="a"></param>
-    /// <param name="b"></param>
-    /// <param name="minConfidence"></param>
-    /// <returns></returns>
-    static bool EitherPointDoesntMeetConfidence(float a, float b, float minConfidence)
-    {
-        return (a < minConfidence || b < minConfidence);
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="keypoints"></param>
-    /// <param name="minConfidence"></param>
-    /// <returns></returns>
-    public static Tuple<Keypoint, Keypoint>[] GetAdjacentKeyPoints(
-           Keypoint[] keypoints, float minConfidence)
-    {
-
-        return connectedPartIndices
-            .Where(x => !EitherPointDoesntMeetConfidence(
-                keypoints[x.Item1].score, keypoints[x.Item2].score, minConfidence))
-           .Select(x => new Tuple<Keypoint, Keypoint>(keypoints[x.Item1], keypoints[x.Item2])).ToArray();
-
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
     /// <param name="point"></param>
     /// <param name="stride"></param>
     /// <param name="height"></param>
