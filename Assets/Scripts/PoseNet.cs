@@ -101,14 +101,6 @@ public class PoseNet : MonoBehaviour
     // The name for the Sigmoid layer that returns the heatmap predictions
     private string predictionLayer = "heatmap_predictions";
 
-    
-    // The number of key points estimated by the model
-    private const int numKeypoints = 17;
-
-    // Stores the current estimated 2D keypoint locations in videoTexture
-    // and their associated confidence values
-    private PoseNetClass.Pose singlePose = new PoseNetClass.Pose(new PoseNetClass.Keypoint[numKeypoints], 0f);
-
     // Live video input from a webcam
     private WebCamTexture webcamTexture;
 
@@ -129,6 +121,7 @@ public class PoseNet : MonoBehaviour
 
     PoseSkeleton[] skeletons;
 
+    // Stores the current estimated 2D keypoint locations in videoTexture
     PoseNetClass.Pose[] poses;
 
     // Start is called before the first frame update
@@ -303,7 +296,7 @@ public class PoseNet : MonoBehaviour
         Tensor displacementBWD = engine.PeekOutput(displacementBWDLayer);
 
         // Calculate the stride used to scale down the inputImage
-        float stride = (imageHeight - 1) / (heatmaps.shape.height - 1);
+        int stride = (imageHeight - 1) / (heatmaps.shape.height - 1);
         stride -= (stride % 8);
 
         if (estimationType == EstimationType.SinglePose)
@@ -318,9 +311,8 @@ public class PoseNet : MonoBehaviour
             // Determine the key point locations
             poses = PoseNetClass.DecodeMultiplePoses(
                 heatmaps, offsets,
-                displacementFWD,
-                displacementBWD,
-                outputStride: (int)stride, maxPoseDetections: maxPoses,
+                displacementFWD, displacementBWD,
+                stride: stride, maxPoseDetections: maxPoses,
                 scoreThreshold: scoreThreshold, 
                 nmsRadius: nmsRadius, kLocalMaximumRadius: kLocalMaximumRadius);
         }
@@ -429,7 +421,7 @@ public class PoseNet : MonoBehaviour
     /// </summary>
     /// <param name="heatmaps">The heatmaps that indicate the confidence levels for key point locations</param>
     /// <param name="offsets">The offsets that refine the key point locations determined with the heatmaps</param>
-    private PoseNetClass.Keypoint[] ProcessSinglePose(Tensor heatmaps, Tensor offsets, float stride)
+    private PoseNetClass.Keypoint[] ProcessSinglePose(Tensor heatmaps, Tensor offsets, int stride)
     {
         PoseNetClass.Keypoint[] keypoints = new PoseNetClass.Keypoint[heatmaps.channels];
 
@@ -439,8 +431,7 @@ public class PoseNet : MonoBehaviour
             // Stores the highest confidence value found in the current heatmap
             float maxConfidence = 0f;
 
-            // The (x, y) coordinates containing the confidence value in the current heatmap
-            Vector2 coords = new Vector2();
+            PoseNetClass.Part part = new PoseNetClass.Part();
 
             // Iterate through heatmap columns
             for (int y = 0; y < heatmaps.height; y++)
@@ -454,20 +445,16 @@ public class PoseNet : MonoBehaviour
                         maxConfidence = heatmaps[0, y, x, c];
 
                         // Update the estimated key point coordinates
-                        coords.x = x;
-                        coords.y = y;
+                        part.heatmapX = x;
+                        part.heatmapY = y;
+                        part.id = c;
                     }
                 }
             }
 
-            // The accompanying offset vector for the current coords
-            Vector2 offset_vector = PoseNetClass.GetOffsetPoint((int)coords.y, (int)coords.x, c, offsets);
-
             // Calcluate the position
-            // Scale the coordinates up to the inputImage resolution
-            // Add the offset vectors to refine the key point location
-            coords.x = (coords.x * stride + offset_vector.x);
-            coords.y = (coords.y * stride + offset_vector.y);
+            // The (x, y) coordinates containing the confidence value in the current heatmap
+            Vector2 coords = PoseNetClass.GetImageCoords(part, stride, offsets);
 
             // Update the estimated key point location in the source image
             keypoints[c] = new PoseNetClass.Keypoint(maxConfidence, coords, PoseNetClass.partNames[c]);
@@ -529,7 +516,7 @@ public class PoseNet : MonoBehaviour
 
 
         // Iterate through the key points
-        for (int k = 0; k < numKeypoints; k++)
+        for (int k = 0; k < keypoints.Length; k++)
         {
             // Check if the current confidence value meets the confidence threshold
             if (keypoints[k].score >= minConfidence / 100f)
