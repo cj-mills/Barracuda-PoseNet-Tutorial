@@ -443,7 +443,7 @@ public class PoseNet : MonoBehaviour
             // Stores the highest confidence value found in the current heatmap
             float maxConfidence = 0f;
 
-            PoseNetClass.Part part = new PoseNetClass.Part();
+            PoseNetClass.PartWithScore part = new PoseNetClass.PartWithScore();
 
             // Iterate through heatmap columns
             for (int y = 0; y < heatmaps.height; y++)
