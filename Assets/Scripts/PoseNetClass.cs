@@ -43,14 +43,14 @@ public class PoseNetClass
     /// <summary>
     /// 
     /// </summary>
-    public struct PartWithScore
+    public struct Part
     {
         public float score;
         public int heatmapX;
         public int heatmapY;
         public int id;
 
-        public PartWithScore(float score, int heatmapX, int heatmapY, int id)
+        public Part(float score, int heatmapX, int heatmapY, int id)
         {
             this.score = score;
             this.heatmapX = heatmapX;
@@ -115,7 +115,7 @@ public class PoseNetClass
     /// <param name="stride"></param>
     /// <param name="offsets"></param>
     /// <returns></returns>
-    public static Vector2 GetImageCoords(PartWithScore part, int stride, Tensor offsets)
+    public static Vector2 GetImageCoords(Part part, int stride, Tensor offsets)
     {
         // The accompanying offset vector for the current coords
         Vector2 offsetVector = GetOffsetVector(part.heatmapY, part.heatmapX,
@@ -137,8 +137,7 @@ public class PoseNetClass
     /// <param name="b"></param>
     /// <param name="minConfidence"></param>
     /// <returns></returns>
-    static bool EitherPointDoesntMeetConfidence(
-        float a, float b, float minConfidence)
+    static bool EitherPointDoesntMeetConfidence(float a, float b, float minConfidence)
     {
         return (a < minConfidence || b < minConfidence);
     }
@@ -257,9 +256,8 @@ public class PoseNetClass
     /// <param name="displacementsFwd"></param>
     /// <param name="displacementsBwd"></param>
     /// <returns></returns>
-    static Keypoint[] DecodePose(PartWithScore root, Tensor scores, Tensor offsets,
-        int stride, Tensor displacementsFwd,
-        Tensor displacementsBwd)
+    static Keypoint[] DecodePose(Part root, Tensor scores, Tensor offsets,
+        int stride, Tensor displacementsFwd, Tensor displacementsBwd)
     {
 
         int numParts = scores.channels;
@@ -268,14 +266,13 @@ public class PoseNetClass
         Keypoint[] instanceKeypoints = new Keypoint[numParts];
 
         // Start a new detection instance at the position of the root.
-        PartWithScore rootPart = root;
         float rootScore = root.score;
-        Vector2 rootPoint = GetImageCoords(rootPart, stride, offsets);
+        Vector2 rootPoint = GetImageCoords(root, stride, offsets);
 
-        instanceKeypoints[rootPart.id] = new Keypoint(
+        instanceKeypoints[root.id] = new Keypoint(
             rootScore,
             rootPoint,
-            partNames[rootPart.id]
+            partNames[root.id]
         );
 
         // Decode the part positions upwards in the tree, following the backward
@@ -311,18 +308,7 @@ public class PoseNetClass
         return instanceKeypoints;
 
     }
-
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="position1"></param>
-    /// <param name="position2"></param>
-    /// <returns></returns>
-    static float SquaredDistance(Vector2 position1, Vector2 position2)
-    {
-        return (position2 - position1).sqrMagnitude;
-    }
+        
 
     /// <summary>
     /// 
@@ -335,8 +321,8 @@ public class PoseNetClass
     static bool WithinNmsRadiusOfCorrespondingPoint(
         List<Pose> poses, float squaredNmsRadius, Vector2 vec, int keypointId)
     {
-        return poses.Any(pose =>
-            SquaredDistance(vec, pose.keypoints[keypointId].position) <= squaredNmsRadius
+        // SquaredDistance
+        return poses.Any(pose => (vec - pose.keypoints[keypointId].position).sqrMagnitude <= squaredNmsRadius
         );
     }
 
@@ -353,7 +339,8 @@ public class PoseNetClass
     {
 
         float notOverlappedKeypointScores = instanceKeypoints
-           .Where((x, id) => !WithinNmsRadiusOfCorrespondingPoint(existingPoses, squaredNmsRadius, x.position, id))
+           .Where((x, id) => 
+           !WithinNmsRadiusOfCorrespondingPoint(existingPoses, squaredNmsRadius, x.position, id))
            .Sum(x => x.score);
 
         return notOverlappedKeypointScores / instanceKeypoints.Length;
@@ -403,9 +390,9 @@ public class PoseNetClass
     /// <param name="localMaximumRadius"></param>
     /// <param name="scores"></param>
     /// <returns></returns>
-    static List<PartWithScore> BuildPartWithScoreQueue(float scoreThreshold, int localMaximumRadius, Tensor heatmaps)
+    static List<Part> BuildPartQueue(float scoreThreshold, int localMaximumRadius, Tensor heatmaps)
     {
-        List<PartWithScore> list = new List<PartWithScore>();
+        List<Part> list = new List<Part>();
 
         for (int c = 0; c < heatmaps.channels; c++)
         {
@@ -422,7 +409,7 @@ public class PoseNetClass
                     // Only consider keypoints whose score is maximum in a local window.
                     if (ScoreIsMaximumInLocalWindow(c, score, y, x, localMaximumRadius, heatmaps))
                     {
-                        list.Add(new PartWithScore(score, x, y, c));
+                        list.Add(new Part(score, x, y, c));
                     }
                 }
             }
@@ -455,12 +442,12 @@ public class PoseNetClass
         float squaredNmsRadius = (float)nmsRadius * nmsRadius;
 
 
-        List<PartWithScore> list = BuildPartWithScoreQueue(scoreThreshold, kLocalMaximumRadius, heatmaps);
+        List<Part> list = BuildPartQueue(scoreThreshold, kLocalMaximumRadius, heatmaps);
         list = list.OrderByDescending(x => x.score).ToList();
         
         while (poses.Count < maxPoseDetections && list.Count > 0)
         {
-            PartWithScore root = list[0];
+            Part root = list[0];
             list.RemoveAt(0);
 
             // Part-based non-maximum suppression: We reject a root candidate if it
