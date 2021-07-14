@@ -130,10 +130,7 @@ public class PoseNet : MonoBehaviour
         maxPoses = (estimationType == EstimationType.SinglePose) ? 1 : maxPoses;
         skeletons = new PoseSkeleton[maxPoses];
 
-        for (int i = 0; i < maxPoses; i++)
-        {
-            skeletons[i] = new PoseSkeleton();
-        }
+        for (int i = 0; i < maxPoses; i++) skeletons[i] = new PoseSkeleton();
 
         // Get a reference to the Video Player GameObject
         GameObject videoPlayer = GameObject.Find("Video Player");
@@ -245,7 +242,7 @@ public class PoseNet : MonoBehaviour
     void Update()
     {
         // Copy webcamTexture to videoTexture if using webcam
-        if (useWebcam) { Graphics.Blit(webcamTexture, videoTexture); }
+        if (useWebcam) Graphics.Blit(webcamTexture, videoTexture);
 
 
         if (imageWidth != rTex.width || imageHeight != rTex.height)
@@ -263,6 +260,19 @@ public class PoseNet : MonoBehaviour
         // Execute neural network with the provided input
         engine.Execute(input);
 
+        
+        // The smallest dimension of the videoTexture
+        int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
+        // The largest dimension of the videoTexture
+        int maxDimension = Mathf.Max(videoTexture.width, videoTexture.height);
+
+        // The value used to scale the key point locations up to the source resolution
+        float sourceScale = (float)minDimension / (float)Mathf.Min(input.width, input.height);
+        // The value used to compensate for resizing the source image to a square aspect ratio
+        float unsqueezeScale = (float)maxDimension / (float)minDimension;
+
+
+        Vector2 sourceDims = new Vector2(videoTexture.width, videoTexture.height);
 
         ProcessOutput(engine);
 
@@ -274,7 +284,9 @@ public class PoseNet : MonoBehaviour
                 skeletons[i].ToggleLines(true);
 
                 // Update the positions for the key point GameObjects
-                UpdateKeyPointPositions(poses[i].keypoints, skeletons[i].keypoints);
+                skeletons[i].UpdateKeyPointPositions(
+                    poses[i].keypoints, sourceScale, unsqueezeScale, 
+                    sourceDims, useWebcam, minConfidence);
                 skeletons[i].RenderSkeleton();
             }
             else
@@ -461,91 +473,6 @@ public class PoseNet : MonoBehaviour
         }
 
         return keypoints;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="imageDimemsion"></param>
-    /// <param name="position"></param>
-    /// <returns></returns>
-    private float FlipCoords(int imageDimemsion, float position)
-    {
-        return imageDimemsion - position;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="keypoint"></param>
-    /// <param name="sourceScale"></param>
-    /// <param name="unsqueezeScale"></param>
-    /// <returns></returns>
-    private Vector2 ScaleOutput(PoseNetClass.Keypoint keypoint, float sourceScale, float unsqueezeScale)
-    {
-        // Scale the position up to the videoTexture resolution
-        keypoint.position.x *= sourceScale;
-        keypoint.position.y = keypoint.position.y *= sourceScale;
-
-        if (videoTexture.width > videoTexture.height)
-        {
-            keypoint.position.x *= unsqueezeScale;
-        }
-        else
-        {
-            keypoint.position.y *= unsqueezeScale;
-        }
-
-        return keypoint.position;
-    }
-
-    /// <summary>
-    /// Update the positions for the key point GameObjects
-    /// </summary>
-    private void UpdateKeyPointPositions(PoseNetClass.Keypoint[] keypoints, Transform[] transforms)
-    {
-        // The smallest dimension of the videoTexture
-        int minDimension = Mathf.Min(videoTexture.width, videoTexture.height);
-        // The largest dimension of the videoTexture
-        int maxDimension = Mathf.Max(videoTexture.width, videoTexture.height);
-
-        // The value used to scale the key point locations up to the source resolution
-        float scale = (float)minDimension / (float)Mathf.Min(input.width, input.height);
-        // The value used to compensate for resizing the source image to a square aspect ratio
-        float unsqueezeScale = (float)maxDimension / (float)minDimension;
-
-
-        // Iterate through the key points
-        for (int k = 0; k < keypoints.Length; k++)
-        {
-            // Check if the current confidence value meets the confidence threshold
-            if (keypoints[k].score >= minConfidence / 100f)
-            {
-                // Activate the current key point GameObject
-                transforms[k].GetComponent<MeshRenderer>().enabled = true;
-            }
-            else
-            {
-                // Deactivate the current key point GameObject
-                transforms[k].GetComponent<MeshRenderer>().enabled = false;
-            }
-
-            keypoints[k].position = ScaleOutput(keypoints[k], scale, unsqueezeScale);
-            keypoints[k].position.y = FlipCoords(videoTexture.height, keypoints[k].position.y);
-
-            // Mirror the x position if using a webcam
-            if (useWebcam)
-            {
-                keypoints[k].position.x = FlipCoords(videoTexture.width, keypoints[k].position.x);
-            }
-
-            // Create a new position Vector3
-            // Set the z value to -1f to place it in front of the video screen
-            Vector3 newPos = new Vector3(keypoints[k].position.x, keypoints[k].position.y, -1f);
-
-            // Update the current key point location
-            transforms[k].position = newPos;
-        }
     }
 
 }
