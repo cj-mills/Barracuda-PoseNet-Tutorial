@@ -84,11 +84,6 @@ public class PoseSkeleton
         }
     }
 
-    public void HideLines()
-    {
-
-    }
-
 
     /// <summary>
     /// Create a line between the key point specified by the start and end point indices
@@ -210,4 +205,75 @@ public class PoseSkeleton
             }
         }
     }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="imageDimemsion"></param>
+    /// <param name="position"></param>
+    /// <returns></returns>
+    private float FlipCoords(int imageDimemsion, float position)
+    {
+        return imageDimemsion - position;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="keypoint"></param>
+    /// <param name="sourceScale"></param>
+    /// <param name="unsqueezeScale"></param>
+    /// <returns></returns>
+    private Vector2 ScaleOutput(Vector2 coords, Vector2 sourceDims, float sourceScale, float unsqueezeScale)
+    {
+        // Scale the position up to the videoTexture resolution
+        coords.x *= sourceScale;
+        coords.y *= sourceScale;
+
+        if (sourceDims.x > sourceDims.y)
+        {
+            coords.x *= unsqueezeScale;
+        }
+        else
+        {
+            coords.y *= unsqueezeScale;
+        }
+
+        return coords;
+    }
+
+    /// <summary>
+    /// Update the positions for the key point GameObjects
+    /// </summary>
+    public void UpdateKeyPointPositions(PoseNetClass.Keypoint[] keypoints,
+        float sourceScale, float unsqueezeScale, Vector2 sourceDims, bool mirrorImage, float minConfidence)
+    {
+
+        // Iterate through the key points
+        for (int k = 0; k < keypoints.Length; k++)
+        {
+            // Check if the current confidence value meets the confidence threshold
+            if (keypoints[k].score >= minConfidence / 100f)
+            {
+                // Activate the current key point GameObject
+                this.keypoints[k].GetComponent<MeshRenderer>().enabled = true;
+            }
+            else
+            {
+                // Deactivate the current key point GameObject
+                this.keypoints[k].GetComponent<MeshRenderer>().enabled = false;
+            }
+
+            Vector2 coords = ScaleOutput(keypoints[k].position, sourceDims, sourceScale, unsqueezeScale);
+            coords.y = FlipCoords((int)sourceDims.y, coords.y);
+
+            // Mirror the x position if using a webcam
+            if (mirrorImage) coords.x = FlipCoords((int)sourceDims.x, coords.x);
+
+            // Update the current key point location
+            // Set the z value to -1f to place it in front of the video screen
+            this.keypoints[k].position = new Vector3(coords.x, coords.y, -1f);
+        }
+    }
+
 }
