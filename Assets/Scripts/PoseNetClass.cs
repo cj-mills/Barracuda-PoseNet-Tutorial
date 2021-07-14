@@ -123,7 +123,7 @@ public class PoseNetClass
     /// <param name="keypoint"></param>
     /// <param name="offsets"></param>
     /// <returns></returns>
-    public static Vector2 GetOffsetPoint(int y, int x, int keypoint, Tensor offsets)
+    public static Vector2 GetOffsetVector(int y, int x, int keypoint, Tensor offsets)
     {
         return new Vector2(
             offsets[0, y, x, keypoint + NUM_KEYPOINTS],
@@ -134,30 +134,23 @@ public class PoseNetClass
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="a"></param>
-    /// <param name="b"></param>
-    /// <returns></returns>
-    static Vector2 AddVectors(Vector2 a, Vector2 b)
-    {
-        return new Vector2(x: a.x + b.x, y: a.y + b.y);
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
     /// <param name="part"></param>
-    /// <param name="outputStride"></param>
+    /// <param name="stride"></param>
     /// <param name="offsets"></param>
     /// <returns></returns>
-    static Vector2 GetImageCoords(
-        Part part, int outputStride, Tensor offsets)
+    public static Vector2 GetImageCoords(Part part, int stride, Tensor offsets)
     {
-        Vector2 vec = GetOffsetPoint(part.heatmapY, part.heatmapX,
+        // The accompanying offset vector for the current coords
+        Vector2 offset_vector = GetOffsetVector(part.heatmapY, part.heatmapX,
                                  part.id, offsets);
-        return new Vector2(
-            (float)(part.heatmapX * outputStride) + vec.x,
-            (float)(part.heatmapY * outputStride) + vec.y
-        );
+
+        Vector2 coords = new Vector2();
+        // Scale the coordinates up to the inputImage resolution
+        // Add the offset vectors to refine the key point location
+        coords.x = (part.heatmapX * stride + offset_vector.x);
+        coords.y = (part.heatmapY * stride + offset_vector.y);
+
+        return coords;
     }
 
     /// <summary>
@@ -194,18 +187,18 @@ public class PoseNetClass
     /// 
     /// </summary>
     /// <param name="point"></param>
-    /// <param name="outputStride"></param>
+    /// <param name="stride"></param>
     /// <param name="height"></param>
     /// <param name="width"></param>
     /// <returns></returns>
     static Vector2Int GetStridedIndexNearPoint(
-        Vector2 point, int outputStride, int height,
+        Vector2 point, int stride, int height,
         int width)
     {
 
         return new Vector2Int(
-            (int)Mathf.Clamp(Mathf.Round(point.x / outputStride), 0, width - 1),
-            (int)Mathf.Clamp(Mathf.Round(point.y / outputStride), 0, height - 1)
+            (int)Mathf.Clamp(Mathf.Round(point.x / stride), 0, width - 1),
+            (int)Mathf.Clamp(Mathf.Round(point.y / stride), 0, height - 1)
         );
     }
 
@@ -238,12 +231,12 @@ public class PoseNetClass
     /// <param name="targetKeypointId"></param>
     /// <param name="scores"></param>
     /// <param name="offsets"></param>
-    /// <param name="outputStride"></param>
+    /// <param name="stride"></param>
     /// <param name="displacements"></param>
     /// <returns></returns>
     static Keypoint TraverseToTargetKeypoint(
         int edgeId, Keypoint sourceKeypoint, int targetKeypointId,
-        Tensor scores, Tensor offsets, int outputStride,
+        Tensor scores, Tensor offsets, int stride,
         Tensor displacements)
     {
 
@@ -252,29 +245,27 @@ public class PoseNetClass
 
         // Nearest neighbor interpolation for the source->target displacements.
         Vector2Int sourceKeypointIndices = GetStridedIndexNearPoint(
-            sourceKeypoint.position, outputStride, height, width);
+            sourceKeypoint.position, stride, height, width);
 
         Vector2 displacement =
             GetDisplacement(edgeId, sourceKeypointIndices, displacements);
 
-        Vector2 displacedPoint = AddVectors(sourceKeypoint.position, displacement);
+        Vector2 displacedPoint = sourceKeypoint.position + displacement;
 
         Vector2Int displacedPointIndices =
-            GetStridedIndexNearPoint(displacedPoint, outputStride, height, width);
+            GetStridedIndexNearPoint(displacedPoint, stride, height, width);
 
-        Vector2 offsetPoint = GetOffsetPoint(
+        Vector2 offsetPoint = GetOffsetVector(
                 displacedPointIndices.y, displacedPointIndices.x, targetKeypointId,
                 offsets);
 
         float score = scores[0,
             displacedPointIndices.y, displacedPointIndices.x, targetKeypointId];
 
-        Vector2 targetKeypoint =
-            AddVectors(
-                new Vector2(
-                    x: displacedPointIndices.x * outputStride,
-                    y: displacedPointIndices.y * outputStride)
-                , new Vector2(x: offsetPoint.x, y: offsetPoint.y));
+        Vector2 targetKeypoint = new Vector2(
+                    x: displacedPointIndices.x * stride,
+                    y: displacedPointIndices.y * stride)
+                + new Vector2(x: offsetPoint.x, y: offsetPoint.y);
 
         return new Keypoint(score, targetKeypoint, partNames[targetKeypointId]);
     }
@@ -285,12 +276,12 @@ public class PoseNetClass
     /// <param name="root"></param>
     /// <param name="scores"></param>
     /// <param name="offsets"></param>
-    /// <param name="outputStride"></param>
+    /// <param name="stride"></param>
     /// <param name="displacementsFwd"></param>
     /// <param name="displacementsBwd"></param>
     /// <returns></returns>
     static Keypoint[] DecodePose(PartWithScore root, Tensor scores, Tensor offsets,
-        int outputStride, Tensor displacementsFwd,
+        int stride, Tensor displacementsFwd,
         Tensor displacementsBwd)
     {
 
@@ -302,7 +293,7 @@ public class PoseNetClass
         // Start a new detection instance at the position of the root.
         Part rootPart = root.part;
         float rootScore = root.score;
-        Vector2 rootPoint = GetImageCoords(rootPart, outputStride, offsets);
+        Vector2 rootPoint = GetImageCoords(rootPart, stride, offsets);
 
         instanceKeypoints[rootPart.id] = new Keypoint(
             rootScore,
@@ -321,7 +312,7 @@ public class PoseNetClass
             {
                 instanceKeypoints[targetKeypointId] = TraverseToTargetKeypoint(
                     edge, instanceKeypoints[sourceKeypointId], targetKeypointId, scores,
-                    offsets, outputStride, displacementsBwd);
+                    offsets, stride, displacementsBwd);
             }
         }
 
@@ -336,7 +327,7 @@ public class PoseNetClass
             {
                 instanceKeypoints[targetKeypointId] = TraverseToTargetKeypoint(
                     edge, instanceKeypoints[sourceKeypointId], targetKeypointId, scores,
-                    offsets, outputStride, displacementsFwd);
+                    offsets, stride, displacementsFwd);
             }
         }
 
@@ -470,7 +461,7 @@ public class PoseNetClass
     /// <param name="offsets"></param>
     /// <param name="displacementsFwd"></param>
     /// <param name="displacementBwd"></param>
-    /// <param name="outputStride"></param>
+    /// <param name="stride"></param>
     /// <param name="maxPoseDetections"></param>
     /// <param name="scoreThreshold"></param>
     /// <param name="nmsRadius"></param>
@@ -478,7 +469,7 @@ public class PoseNetClass
     public static Pose[] DecodeMultiplePoses(
         Tensor heatmaps, Tensor offsets,
         Tensor displacementsFwd, Tensor displacementBwd,
-        int outputStride, int maxPoseDetections,
+        int stride, int maxPoseDetections,
         float scoreThreshold, int nmsRadius = 20, int kLocalMaximumRadius = 1)
     {
         // Stores the final poses
@@ -498,7 +489,7 @@ public class PoseNetClass
             // Part-based non-maximum suppression: We reject a root candidate if it
             // is within a disk of `nmsRadius` pixels from the corresponding part of
             // a previously detected instance.
-            Vector2 rootImageCoords = GetImageCoords(root.part, outputStride, offsets);
+            Vector2 rootImageCoords = GetImageCoords(root.part, stride, offsets);
 
             if (WithinNmsRadiusOfCorrespondingPoint(
                     poses, squaredNmsRadius, rootImageCoords, root.part.id))
@@ -508,7 +499,7 @@ public class PoseNetClass
 
             // Start a new detection instance at the position of the root.
             Keypoint[] keypoints = DecodePose(
-                root, heatmaps, offsets, outputStride, displacementsFwd,
+                root, heatmaps, offsets, stride, displacementsFwd,
                 displacementBwd);
 
             float score = GetInstanceScore(poses, squaredNmsRadius, keypoints);
