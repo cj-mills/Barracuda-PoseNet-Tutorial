@@ -62,6 +62,9 @@ public class PoseNet : MonoBehaviour
     //[Range(0, 100)]
     public int nmsRadius = 20;
 
+    [Tooltip("")]
+    public int kLocalMaximumRadius = 1;
+
     [Tooltip("The model architecture used")]
     public ModelType modelType = ModelType.ResNet50;
 
@@ -318,7 +321,8 @@ public class PoseNet : MonoBehaviour
                 displacementFWD,
                 displacementBWD,
                 outputStride: (int)stride, maxPoseDetections: maxPoses,
-                scoreThreshold: scoreThreshold, nmsRadius: nmsRadius);
+                scoreThreshold: scoreThreshold, 
+                nmsRadius: nmsRadius, kLocalMaximumRadius: kLocalMaximumRadius);
         }
 
         heatmaps.Dispose();
