@@ -267,12 +267,12 @@ public class PoseNet : MonoBehaviour
         int maxDimension = Mathf.Max(videoTexture.width, videoTexture.height);
 
         // The value used to scale the key point locations up to the source resolution
-        float sourceScale = (float)minDimension / (float)Mathf.Min(input.width, input.height);
+        float sourceScale = (float)minDimension / Mathf.Min(input.width, input.height);
         // The value used to compensate for resizing the source image to a square aspect ratio
-        float unsqueezeScale = (float)maxDimension / (float)minDimension;
+        float unsqueezeScale = (float)maxDimension / minDimension;
 
 
-        Vector2 sourceDims = new Vector2(videoTexture.width, videoTexture.height);
+        Vector2Int sourceDims = new Vector2Int(videoTexture.width, videoTexture.height);
 
         ProcessOutput(engine);
 
