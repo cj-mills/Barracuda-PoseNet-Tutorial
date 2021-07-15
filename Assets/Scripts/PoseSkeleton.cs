@@ -193,42 +193,6 @@ public class PoseSkeleton
     }
 
     /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="imageDimemsion"></param>
-    /// <param name="position"></param>
-    /// <returns></returns>
-    private float FlipCoords(int imageDimemsion, float position)
-    {
-        return imageDimemsion - position;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="keypoint"></param>
-    /// <param name="sourceScale"></param>
-    /// <param name="unsqueezeScale"></param>
-    /// <returns></returns>
-    private Vector2 ScaleOutput(Vector2 coords, Vector2 sourceDims, float sourceScale, float unsqueezeScale)
-    {
-        // Scale the position up to the videoTexture resolution
-        coords.x *= sourceScale;
-        coords.y *= sourceScale;
-
-        if (sourceDims.x > sourceDims.y)
-        {
-            coords.x *= unsqueezeScale;
-        }
-        else
-        {
-            coords.y *= unsqueezeScale;
-        }
-
-        return coords;
-    }
-
-    /// <summary>
     /// Update the positions for the key point GameObjects
     /// </summary>
     public void UpdateKeyPointPositions(Utils.Keypoint[] keypoints,
@@ -250,11 +214,20 @@ public class PoseSkeleton
                 this.keypoints[k].GetComponent<MeshRenderer>().enabled = false;
             }
 
-            Vector2 coords = ScaleOutput(keypoints[k].position, sourceDims, sourceScale, unsqueezeScale);
-            coords.y = FlipCoords(sourceDims.y, coords.y);
+            Vector2 coords = keypoints[k].position * sourceScale;
+            if (sourceDims.x > sourceDims.y)
+            {
+                coords.x *= unsqueezeScale;
+            }
+            else
+            {
+                coords.y *= unsqueezeScale;
+            }
+
+            coords.y = sourceDims.y - coords.y;
 
             // Mirror the x position if using a webcam
-            if (mirrorImage) coords.x = FlipCoords(sourceDims.x, coords.x);
+            if (mirrorImage) coords.x = sourceDims.x - coords.x;
 
             // Update the current key point location
             // Set the z value to -1f to place it in front of the video screen
