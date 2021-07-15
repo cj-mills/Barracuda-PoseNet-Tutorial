@@ -378,11 +378,10 @@ public class Utils
                 {
                     float score = heatmaps[0, y, x, c];
 
-                    // Only consider parts with score greater or equal to threshold as
-                    // root candidates.
+                    // Skip parts with score less than the scoreThreshold
                     if (score < scoreThreshold) continue;
 
-                    // Only consider keypoints whose score is maximum in a local window.
+                    // Only add keypoints with the highest score in a local window.
                     if (ScoreIsMaximumInLocalWindow(c, score, y, x, localMaximumRadius, heatmaps))
                     {
                         list.Add(new Keypoint(score, new Vector2(x, y), c));
