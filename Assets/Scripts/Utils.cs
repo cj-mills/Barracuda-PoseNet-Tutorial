@@ -435,7 +435,7 @@ public class Utils
                 continue;
             }
 
-            // Start a new detection instance at the position of the root.
+            // 
             Keypoint[] keypoints = DecodePose(
                 root, heatmaps, offsets, stride, displacementsFwd,
                 displacementBwd);
