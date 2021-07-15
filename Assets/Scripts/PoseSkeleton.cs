@@ -147,6 +147,49 @@ public class PoseSkeleton
     }
 
     /// <summary>
+    /// Update the positions for the key point GameObjects
+    /// </summary>
+    public void UpdateKeyPointPositions(Utils.Keypoint[] keypoints,
+        float sourceScale, float unsqueezeScale, Vector2Int sourceDims, bool mirrorImage, float minConfidence)
+    {
+
+        // Iterate through the key points
+        for (int k = 0; k < keypoints.Length; k++)
+        {
+            // Check if the current confidence value meets the confidence threshold
+            if (keypoints[k].score >= minConfidence / 100f)
+            {
+                // Activate the current key point GameObject
+                this.keypoints[k].GetComponent<MeshRenderer>().enabled = true;
+            }
+            else
+            {
+                // Deactivate the current key point GameObject
+                this.keypoints[k].GetComponent<MeshRenderer>().enabled = false;
+            }
+
+            Vector2 coords = keypoints[k].position * sourceScale;
+            if (sourceDims.x > sourceDims.y)
+            {
+                coords.x *= unsqueezeScale;
+            }
+            else
+            {
+                coords.y *= unsqueezeScale;
+            }
+
+            coords.y = sourceDims.y - coords.y;
+
+            // Mirror the x position if using a webcam
+            if (mirrorImage) coords.x = sourceDims.x - coords.x;
+
+            // Update the current key point location
+            // Set the z value to -1f to place it in front of the video screen
+            this.keypoints[k].position = new Vector3(coords.x, coords.y, -1f);
+        }
+    }
+
+    /// <summary>
     /// Draw the pose skeleton based on the latest location data
     /// </summary>
     public void RenderSkeleton()
@@ -191,48 +234,4 @@ public class PoseSkeleton
             }
         }
     }
-
-    /// <summary>
-    /// Update the positions for the key point GameObjects
-    /// </summary>
-    public void UpdateKeyPointPositions(Utils.Keypoint[] keypoints,
-        float sourceScale, float unsqueezeScale, Vector2Int sourceDims, bool mirrorImage, float minConfidence)
-    {
-
-        // Iterate through the key points
-        for (int k = 0; k < keypoints.Length; k++)
-        {
-            // Check if the current confidence value meets the confidence threshold
-            if (keypoints[k].score >= minConfidence / 100f)
-            {
-                // Activate the current key point GameObject
-                this.keypoints[k].GetComponent<MeshRenderer>().enabled = true;
-            }
-            else
-            {
-                // Deactivate the current key point GameObject
-                this.keypoints[k].GetComponent<MeshRenderer>().enabled = false;
-            }
-
-            Vector2 coords = keypoints[k].position * sourceScale;
-            if (sourceDims.x > sourceDims.y)
-            {
-                coords.x *= unsqueezeScale;
-            }
-            else
-            {
-                coords.y *= unsqueezeScale;
-            }
-
-            coords.y = sourceDims.y - coords.y;
-
-            // Mirror the x position if using a webcam
-            if (mirrorImage) coords.x = sourceDims.x - coords.x;
-
-            // Update the current key point location
-            // Set the z value to -1f to place it in front of the video screen
-            this.keypoints[k].position = new Vector3(coords.x, coords.y, -1f);
-        }
-    }
-
 }
