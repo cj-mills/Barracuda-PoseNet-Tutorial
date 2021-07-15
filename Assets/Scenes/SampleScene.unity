@@ -352,7 +352,7 @@ MonoBehaviour:
   resnetModelAsset: {fileID: 5022602860645237092, guid: c941343b78633004a97904ec343ea2ea,
     type: 3}
   workerType: 256
-  minConfidence: 80
+  minConfidence: 50
 --- !u!4 &977542379
 Transform:
   m_ObjectHideFlags: 0
