@@ -81,7 +81,6 @@ public class PoseNet : MonoBehaviour
     [Tooltip("The minimum confidence level required to display the key point")]
     [Range(0, 100)]
     public int minConfidence = 70;
-
     
     // The compiled model used for performing inference
     private Model m_RunTimeModel;
@@ -128,7 +127,7 @@ public class PoseNet : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        maxPoses = (estimationType == EstimationType.SinglePose) ? 1 : maxPoses;
+        if (estimationType == EstimationType.SinglePose) maxPoses = 1;
         skeletons = new PoseSkeleton[maxPoses];
 
         for (int i = 0; i < maxPoses; i++) skeletons[i] = new PoseSkeleton();
