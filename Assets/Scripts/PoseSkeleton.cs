@@ -197,29 +197,26 @@ public class PoseSkeleton
         // Iterate through the joint pairs
         for (int i = 0; i < jointPairs.Length; i++)
         {
-            // Set the start point index
-            int startpointIndex = jointPairs[i][0];
-            // Set the end poin indext
-            int endpointIndex = jointPairs[i][1];
-
             // Set the GameObject for the starting key point
-            GameObject startingKeyPoint = keypoints[startpointIndex].gameObject;
+            Transform startingKeyPoint = keypoints[jointPairs[i][0]];
             // Set the GameObject for the ending key point
-            GameObject endingKeyPoint = keypoints[endpointIndex].gameObject;
-
-            // Get the starting position for the line
-            Vector3 startPos = new Vector3(startingKeyPoint.transform.position.x,
-                                           startingKeyPoint.transform.position.y,
-                                           startingKeyPoint.transform.position.z);
-            // Get the ending position for the line
-            Vector3 endPos = new Vector3(endingKeyPoint.transform.position.x,
-                                         endingKeyPoint.transform.position.y,
-                                         endingKeyPoint.transform.position.z);
+            Transform endingKeyPoint = keypoints[jointPairs[i][1]];
 
             // Check if both the starting and ending key points are active
             if (startingKeyPoint.GetComponent<MeshRenderer>().enabled && 
                 endingKeyPoint.GetComponent<MeshRenderer>().enabled)
             {
+
+                // Get the starting position for the line
+                Vector3 startPos = new Vector3(startingKeyPoint.position.x,
+                                               startingKeyPoint.position.y,
+                                               startingKeyPoint.position.z);
+                // Get the ending position for the line
+                Vector3 endPos = new Vector3(endingKeyPoint.position.x,
+                                             endingKeyPoint.position.y,
+                                             endingKeyPoint.position.z);
+
+
                 // Activate the line
                 lineRenderers[i].gameObject.SetActive(true);
                 // Update the starting position
