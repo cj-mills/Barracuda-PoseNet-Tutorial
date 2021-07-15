@@ -198,8 +198,6 @@ public class PoseNet : MonoBehaviour
             displacementFWDLayer = "resnet_v1_50/displacement_fwd_2/BiasAdd";
             displacementBWDLayer = "resnet_v1_50/displacement_bwd_2/BiasAdd";
 
-            minConfidence = 80;
-
             // Compile the model asset into an object oriented representation
             m_RunTimeModel = ModelLoader.Load(resnetModelAsset);
             preProcessFuncName = "PreprocessResNet";
@@ -210,8 +208,6 @@ public class PoseNet : MonoBehaviour
             offsetsLayer = "offset_2";
             displacementFWDLayer = "displacement_fwd_2";
             displacementBWDLayer = "displacement_bwd_2";
-
-            minConfidence = 65;
 
             // Compile the model asset into an object oriented representation
             m_RunTimeModel = ModelLoader.Load(mobileNetModelAsset);
