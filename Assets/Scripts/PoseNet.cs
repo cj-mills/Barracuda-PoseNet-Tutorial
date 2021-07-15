@@ -123,7 +123,7 @@ public class PoseNet : MonoBehaviour
     PoseSkeleton[] skeletons;
 
     // Stores the current estimated 2D keypoint locations in videoTexture
-    PoseNetClass.Pose[] poses;
+    Utils.Pose[] poses;
 
     // Start is called before the first frame update
     void Start()
@@ -314,7 +314,7 @@ public class PoseNet : MonoBehaviour
 
         if (estimationType == EstimationType.SinglePose)
         {
-            poses = new PoseNetClass.Pose[1];
+            poses = new Utils.Pose[1];
 
             // Determine the key point locations
             poses[0].keypoints = ProcessSinglePose(heatmaps, offsets, stride);
@@ -322,7 +322,7 @@ public class PoseNet : MonoBehaviour
         else
         {
             // Determine the key point locations
-            poses = PoseNetClass.DecodeMultiplePoses(
+            poses = Utils.DecodeMultiplePoses(
                 heatmaps, offsets,
                 displacementFWD, displacementBWD,
                 stride: stride, maxPoseDetections: maxPoses,
@@ -434,9 +434,9 @@ public class PoseNet : MonoBehaviour
     /// </summary>
     /// <param name="heatmaps">The heatmaps that indicate the confidence levels for key point locations</param>
     /// <param name="offsets">The offsets that refine the key point locations determined with the heatmaps</param>
-    private PoseNetClass.Keypoint[] ProcessSinglePose(Tensor heatmaps, Tensor offsets, int stride)
+    private Utils.Keypoint[] ProcessSinglePose(Tensor heatmaps, Tensor offsets, int stride)
     {
-        PoseNetClass.Keypoint[] keypoints = new PoseNetClass.Keypoint[heatmaps.channels];
+        Utils.Keypoint[] keypoints = new Utils.Keypoint[heatmaps.channels];
 
         // Iterate through heatmaps
         for (int c = 0; c < heatmaps.channels; c++)
@@ -444,7 +444,7 @@ public class PoseNet : MonoBehaviour
             // Stores the highest confidence value found in the current heatmap
             float maxConfidence = 0f;
 
-            PoseNetClass.Part part = new PoseNetClass.Part();
+            Utils.Part part = new Utils.Part();
 
             // Iterate through heatmap columns
             for (int y = 0; y < heatmaps.height; y++)
@@ -467,10 +467,10 @@ public class PoseNet : MonoBehaviour
 
             // Calcluate the position
             // The (x, y) coordinates containing the confidence value in the current heatmap
-            Vector2 coords = PoseNetClass.GetImageCoords(part, stride, offsets);
+            Vector2 coords = Utils.GetImageCoords(part, stride, offsets);
 
             // Update the estimated key point location in the source image
-            keypoints[c] = new PoseNetClass.Keypoint(maxConfidence, coords, PoseNetClass.partNames[c]);
+            keypoints[c] = new Utils.Keypoint(maxConfidence, coords, Utils.partNames[c]);
         }
 
         return keypoints;
