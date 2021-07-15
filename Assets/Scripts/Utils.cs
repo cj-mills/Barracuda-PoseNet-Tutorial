@@ -92,6 +92,34 @@ public class Utils
     /// <summary>
     /// 
     /// </summary>
+    /// <param name="tensor"></param>
+    public static void PreprocessMobilenet(float[] tensor)
+    {
+        for (int i = 0; i < tensor.Length; i++)
+        {
+            tensor[i] = (float)(2.0f * tensor[i] / 1.0f) - 1.0f;
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="tensor"></param>
+    public static void PreprocessResnet(float[] tensor)
+    {
+        float[] imagenetMean = new float[] { -123.15f, -115.90f, -103.06f };
+
+        for (int i = 0; i < tensor.Length / 3; i++)
+        {
+            tensor[i * 3 + 0] = (float)tensor[i * 3 + 0] * 255f + imagenetMean[0];
+            tensor[i * 3 + 1] = (float)tensor[i * 3 + 1] * 255f + imagenetMean[1];
+            tensor[i * 3 + 2] = (float)tensor[i * 3 + 2] * 255f + imagenetMean[2];
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
     /// <param name="y"></param>
     /// <param name="x"></param>
     /// <param name="keypoint"></param>
@@ -125,6 +153,53 @@ public class Utils
         coords.y = (part.heatmapY * stride + offsetVector.y);
 
         return coords;
+    }
+
+    /// <summary>
+    /// Determine the estimated key point locations using the heatmaps and offsets tensors
+    /// </summary>
+    /// <param name="heatmaps">The heatmaps that indicate the confidence levels for key point locations</param>
+    /// <param name="offsets">The offsets that refine the key point locations determined with the heatmaps</param>
+    public static Keypoint[] DecodeSinglePose(Tensor heatmaps, Tensor offsets, int stride)
+    {
+        Utils.Keypoint[] keypoints = new Utils.Keypoint[heatmaps.channels];
+
+        // Iterate through heatmaps
+        for (int c = 0; c < heatmaps.channels; c++)
+        {
+            // Stores the highest confidence value found in the current heatmap
+            float maxConfidence = 0f;
+
+            Utils.Part part = new Utils.Part();
+
+            // Iterate through heatmap columns
+            for (int y = 0; y < heatmaps.height; y++)
+            {
+                // Iterate through column rows
+                for (int x = 0; x < heatmaps.width; x++)
+                {
+                    if (heatmaps[0, y, x, c] > maxConfidence)
+                    {
+                        // Update the highest confidence for the current key point
+                        maxConfidence = heatmaps[0, y, x, c];
+
+                        // Update the estimated key point coordinates
+                        part.heatmapX = x;
+                        part.heatmapY = y;
+                        part.id = c;
+                    }
+                }
+            }
+
+            // Calcluate the position
+            // The (x, y) coordinates containing the confidence value in the current heatmap
+            Vector2 coords = Utils.GetImageCoords(part, stride, offsets);
+
+            // Update the estimated key point location in the source image
+            keypoints[c] = new Utils.Keypoint(maxConfidence, coords, Utils.partNames[c]);
+        }
+
+        return keypoints;
     }
 
     /// <summary>
