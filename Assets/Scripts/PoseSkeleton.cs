@@ -2,16 +2,6 @@
 
 public class PoseSkeleton
 {
-    public static string[] partNames = new string[]{
-            "nose", "leftEye", "rightEye", "leftEar", "rightEar", "leftShoulder",
-            "rightShoulder", "leftElbow", "rightElbow", "leftWrist", "rightWrist",
-            "leftHip", "rightHip", "leftKnee", "rightKnee", "leftAnkle", "rightAnkle"
-        };
-
-
-
-    private int numKeypoints = partNames.Length;
-
     // The list of key point GameObjects that make up the pose skeleton
     public Transform[] keypoints;
 
@@ -32,18 +22,18 @@ public class PoseSkeleton
     // Start is called before the first frame update
     public PoseSkeleton()
     {
-        this.keypoints = new Transform[numKeypoints];
+        this.keypoints = new Transform[Utils.NUM_KEYPOINTS];
 
         keypointMat = new Material(Shader.Find("Unlit/Color"));
         keypointMat.color = Color.yellow;
 
-        for (int i = 0; i < numKeypoints; i++)
+        for (int i = 0; i < Utils.NUM_KEYPOINTS; i++)
         {
             this.keypoints[i] = GameObject.CreatePrimitive(PrimitiveType.Sphere).transform;
             this.keypoints[i].position = new Vector3(0, 0, 0);
             this.keypoints[i].localScale = new Vector3(10, 10, 0);
             this.keypoints[i].gameObject.GetComponent<MeshRenderer>().material = keypointMat;
-            this.keypoints[i].gameObject.name = partNames[i];
+            this.keypoints[i].gameObject.name = Utils.partNames[i];
         }
 
 
