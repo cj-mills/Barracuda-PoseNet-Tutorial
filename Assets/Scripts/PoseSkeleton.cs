@@ -241,7 +241,7 @@ public class PoseSkeleton
     /// <summary>
     /// Update the positions for the key point GameObjects
     /// </summary>
-    public void UpdateKeyPointPositions(PoseNetClass.Keypoint[] keypoints,
+    public void UpdateKeyPointPositions(Utils.Keypoint[] keypoints,
         float sourceScale, float unsqueezeScale, Vector2Int sourceDims, bool mirrorImage, float minConfidence)
     {
 
