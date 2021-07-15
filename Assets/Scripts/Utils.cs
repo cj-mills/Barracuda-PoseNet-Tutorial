@@ -43,49 +43,17 @@ public class Utils
     /// <summary>
     /// 
     /// </summary>
-    public struct Part
-    {
-        public float score;
-        public int heatmapX;
-        public int heatmapY;
-        public int id;
-
-        public Part(float score, int heatmapX, int heatmapY, int id)
-        {
-            this.score = score;
-            this.heatmapX = heatmapX;
-            this.heatmapY = heatmapY;
-            this.id = id;
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
     public struct Keypoint
     {
         public float score;
         public Vector2 position;
-        public string part;
+        public int id;
 
-        public Keypoint(float score, Vector2 position, string part)
+        public Keypoint(float score, Vector2 position, int id)
         {
             this.score = score;
             this.position = position;
-            this.part = part;
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    public struct Pose
-    {
-        public Keypoint[] keypoints;
-
-        public Pose(Keypoint[] keypoints)
-        {
-            this.keypoints = keypoints;
+            this.id = id;
         }
     }
 
@@ -140,17 +108,17 @@ public class Utils
     /// <param name="stride"></param>
     /// <param name="offsets"></param>
     /// <returns></returns>
-    public static Vector2 GetImageCoords(Part part, int stride, Tensor offsets)
+    public static Vector2 GetImageCoords(Keypoint part, int stride, Tensor offsets)
     {
         // The accompanying offset vector for the current coords
-        Vector2 offsetVector = GetOffsetVector(part.heatmapY, part.heatmapX,
+        Vector2 offsetVector = GetOffsetVector((int)part.position.y, (int)part.position.x,
                                  part.id, offsets);
 
         Vector2 coords = new Vector2();
         // Scale the coordinates up to the inputImage resolution
         // Add the offset vectors to refine the key point location
-        coords.x = (part.heatmapX * stride + offsetVector.x);
-        coords.y = (part.heatmapY * stride + offsetVector.y);
+        coords.x = (part.position.x * stride + offsetVector.x);
+        coords.y = (part.position.y * stride + offsetVector.y);
 
         return coords;
     }
@@ -162,7 +130,7 @@ public class Utils
     /// <param name="offsets">The offsets that refine the key point locations determined with the heatmaps</param>
     public static Keypoint[] DecodeSinglePose(Tensor heatmaps, Tensor offsets, int stride)
     {
-        Utils.Keypoint[] keypoints = new Utils.Keypoint[heatmaps.channels];
+        Keypoint[] keypoints = new Keypoint[heatmaps.channels];
 
         // Iterate through heatmaps
         for (int c = 0; c < heatmaps.channels; c++)
@@ -170,7 +138,7 @@ public class Utils
             // Stores the highest confidence value found in the current heatmap
             float maxConfidence = 0f;
 
-            Utils.Part part = new Utils.Part();
+            Keypoint part = new Keypoint();
 
             // Iterate through heatmap columns
             for (int y = 0; y < heatmaps.height; y++)
@@ -184,8 +152,8 @@ public class Utils
                         maxConfidence = heatmaps[0, y, x, c];
 
                         // Update the estimated key point coordinates
-                        part.heatmapX = x;
-                        part.heatmapY = y;
+                        part.position.x = x;
+                        part.position.y = y;
                         part.id = c;
                     }
                 }
@@ -193,10 +161,10 @@ public class Utils
 
             // Calcluate the position
             // The (x, y) coordinates containing the confidence value in the current heatmap
-            Vector2 coords = Utils.GetImageCoords(part, stride, offsets);
+            Vector2 coords = GetImageCoords(part, stride, offsets);
 
             // Update the estimated key point location in the source image
-            keypoints[c] = new Utils.Keypoint(maxConfidence, coords, Utils.partNames[c]);
+            keypoints[c] = new Keypoint(maxConfidence, coords, c);
         }
 
         return keypoints;
@@ -281,7 +249,7 @@ public class Utils
                     displacedPointIndices.y * stride)
                 + new Vector2(offsetVector.x, offsetVector.y);
 
-        return new Keypoint(score, targetKeypoint, partNames[targetKeypointId]);
+        return new Keypoint(score, targetKeypoint, targetKeypointId);
     }
 
     /// <summary>
@@ -294,7 +262,7 @@ public class Utils
     /// <param name="displacementsFwd"></param>
     /// <param name="displacementsBwd"></param>
     /// <returns></returns>
-    static Keypoint[] DecodePose(Part root, Tensor scores, Tensor offsets,
+    static Keypoint[] DecodePose(Keypoint root, Tensor scores, Tensor offsets,
         int stride, Tensor displacementsFwd, Tensor displacementsBwd)
     {
 
@@ -303,7 +271,7 @@ public class Utils
         // Start a new detection instance at the position of the root.
         Vector2 rootPoint = GetImageCoords(root, stride, offsets);
 
-        instanceKeypoints[root.id] = new Keypoint(root.score, rootPoint, partNames[root.id]);
+        instanceKeypoints[root.id] = new Keypoint(root.score, rootPoint, root.id);
 
 
         int numEdges = parentToChildEdges.Length;
@@ -351,10 +319,10 @@ public class Utils
     /// <param name="keypointId"></param>
     /// <returns></returns>
     static bool WithinNmsRadiusOfCorrespondingPoint(
-        List<Pose> poses, float squaredNmsRadius, Vector2 vec, int keypointId)
+        List<Keypoint[]> poses, float squaredNmsRadius, Vector2 vec, int keypointId)
     {
         // SquaredDistance
-        return poses.Any(pose => (vec - pose.keypoints[keypointId].position).sqrMagnitude <= squaredNmsRadius);
+        return poses.Any(pose => (vec - pose[keypointId].position).sqrMagnitude <= squaredNmsRadius);
     }
 
     
@@ -401,9 +369,9 @@ public class Utils
     /// <param name="localMaximumRadius"></param>
     /// <param name="scores"></param>
     /// <returns></returns>
-    static List<Part> BuildPartQueue(float scoreThreshold, int localMaximumRadius, Tensor heatmaps)
+    static List<Keypoint> BuildPartQueue(float scoreThreshold, int localMaximumRadius, Tensor heatmaps)
     {
-        List<Part> list = new List<Part>();
+        List<Keypoint> list = new List<Keypoint>();
 
         for (int c = 0; c < heatmaps.channels; c++)
         {
@@ -420,7 +388,7 @@ public class Utils
                     // Only consider keypoints whose score is maximum in a local window.
                     if (ScoreIsMaximumInLocalWindow(c, score, y, x, localMaximumRadius, heatmaps))
                     {
-                        list.Add(new Part(score, x, y, c));
+                        list.Add(new Keypoint(score, new Vector2(x, y), c));
                     }
                 }
             }
@@ -441,24 +409,24 @@ public class Utils
     /// <param name="scoreThreshold"></param>
     /// <param name="nmsRadius"></param>
     /// <returns></returns>
-    public static Pose[] DecodeMultiplePoses(
+    public static Keypoint[][] DecodeMultiplePoses(
         Tensor heatmaps, Tensor offsets,
         Tensor displacementsFwd, Tensor displacementBwd,
         int stride, int maxPoseDetections,
         float scoreThreshold, int nmsRadius = 20, int kLocalMaximumRadius = 1)
     {
         // Stores the final poses
-        List<Pose> poses = new List<Pose>();
+        List<Keypoint[]> poses = new List<Keypoint[]>();
         // 
         float squaredNmsRadius = (float)nmsRadius * nmsRadius;
 
 
-        List<Part> list = BuildPartQueue(scoreThreshold, kLocalMaximumRadius, heatmaps);
+        List<Keypoint> list = BuildPartQueue(scoreThreshold, kLocalMaximumRadius, heatmaps);
         list = list.OrderByDescending(x => x.score).ToList();
         
         while (poses.Count < maxPoseDetections && list.Count > 0)
         {
-            Part root = list[0];
+            Keypoint root = list[0];
             list.RemoveAt(0);
 
             // Part-based non-maximum suppression: We reject a root candidate if it
@@ -477,7 +445,7 @@ public class Utils
                 root, heatmaps, offsets, stride, displacementsFwd,
                 displacementBwd);
 
-            poses.Add(new Pose(keypoints));
+            poses.Add(keypoints);
         }
 
         return poses.ToArray();
