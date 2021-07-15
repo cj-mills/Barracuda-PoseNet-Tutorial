@@ -122,7 +122,7 @@ public class PoseNet : MonoBehaviour
     PoseSkeleton[] skeletons;
 
     // Stores the current estimated 2D keypoint locations in videoTexture
-    Utils.Pose[] poses;
+    Utils.Keypoint[][] poses;
 
     // Start is called before the first frame update
     void Start()
@@ -285,7 +285,7 @@ public class PoseNet : MonoBehaviour
 
                 // Update the positions for the key point GameObjects
                 skeletons[i].UpdateKeyPointPositions(
-                    poses[i].keypoints, sourceScale, unsqueezeScale, 
+                    poses[i], sourceScale, unsqueezeScale, 
                     sourceDims, useWebcam, minConfidence);
                 skeletons[i].RenderSkeleton();
             }
@@ -313,10 +313,10 @@ public class PoseNet : MonoBehaviour
 
         if (estimationType == EstimationType.SinglePose)
         {
-            poses = new Utils.Pose[1];
+            poses = new Utils.Keypoint[1][];
 
             // Determine the key point locations
-            poses[0].keypoints = Utils.DecodeSinglePose(heatmaps, offsets, stride);
+            poses[0] = Utils.DecodeSinglePose(heatmaps, offsets, stride);
         }
         else
         {
