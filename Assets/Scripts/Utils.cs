@@ -204,10 +204,7 @@ public class Utils
     }
 
     /// <summary>
-    /// We get a new keypoint along the `edgeId` for the pose instance, assuming
-    /// that the position of the `idSource` part is already known. For this, we
-    /// follow the displacement vector from the source to target part (stored in
-    /// the `i`-t channel of the displacement tensor).
+    ///
     /// </summary>
     /// <param name="edgeId"></param>
     /// <param name="sourceKeypoint"></param>
