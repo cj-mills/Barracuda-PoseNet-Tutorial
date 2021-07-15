@@ -426,9 +426,7 @@ public class Utils
             Keypoint root = list[0];
             list.RemoveAt(0);
 
-            // Part-based non-maximum suppression: We reject a root candidate if it
-            // is within a disk of `nmsRadius` pixels from the corresponding part of
-            // a previously detected instance.
+            // 
             Vector2 rootImageCoords = GetImageCoords(root, stride, offsets);
 
             if (WithinNmsRadiusOfCorrespondingPoint(
