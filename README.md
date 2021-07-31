@@ -1,5 +1,9 @@
 # Barracuda PoseNet Tutorial 2nd Edition
 
+### Introduction
+
+This tutorial series provides step-by-step instructions for how to perform human [pose estimation](https://www.fritz.ai/pose-estimation/) in [Unity](https://unity.com/) with the [Barracuda](https://docs.unity3d.com/Packages/com.unity.barracuda@2.1/manual/index.html) inference library. We will be using a pretrained [PoseNet](https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5) model to estimate the 2D locations of key points on the bodies of one or more individuals in a [video frame](https://en.wikipedia.org/wiki/Film_frame). We will then use the output from the model to control the locations of [`GameObjects`](https://docs.unity3d.com/ScriptReference/GameObject.html) in a scene.
+
 ### Single Pose Estimation
 
 ![](https://github.com/cj-mills/christianjmills/raw/master/images/barracuda-posenet-tutorial-v2/part-7/single-pose-test.gif)
@@ -8,19 +12,11 @@
 
 ![](https://github.com/cj-mills/christianjmills/raw/master/images/barracuda-posenet-tutorial-v2/part-7/multi-pose-test.gif)
 
-
-
 ### Demo Videos
 
 * [Single Pose Estimation](https://youtu.be/KQyJgXss9NA)
 
 * [Multi-Pose Estimation](https://youtu.be/F995ZadTZik)
-
-
-
-### Introduction
-
-This tutorial series provides step-by-step instructions for how to perform human [pose estimation](https://www.fritz.ai/pose-estimation/) in [Unity](https://unity.com/) with the [Barracuda](https://docs.unity3d.com/Packages/com.unity.barracuda@2.1/manual/index.html) inference library. We will be using a pretrained [PoseNet](https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5) model to estimate the 2D locations of key points on the bodies of one or more individuals in a [video frame](https://en.wikipedia.org/wiki/Film_frame). We will then use the output from the model to control the locations of [`GameObjects`](https://docs.unity3d.com/ScriptReference/GameObject.html) in a scene.
 
 ## Tutorial Links
 
