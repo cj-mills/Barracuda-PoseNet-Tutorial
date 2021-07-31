@@ -12,9 +12,9 @@
 
 ### Demo Videos
 
-{% include youtube.html content="https://youtu.be/KQyJgXss9NA" %}
+* [Single Pose Estimation](https://youtu.be/KQyJgXss9NA)
 
-{% include youtube.html content="https://youtu.be/F995ZadTZik" %}
+* [Multi-Pose Estimation](https://youtu.be/F995ZadTZik)
 
 
 
