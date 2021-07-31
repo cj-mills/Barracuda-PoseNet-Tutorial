@@ -1,4 +1,4 @@
-# Barracuda PoseNet Tutorial
+# Barracuda PoseNet Tutorial - Version 1
 
 ![](https://github.com/cj-mills/christianjmills/raw/master/images/barracuda-posenet-tutorial/part-6/pose_skeleton_480p_90c.gif)
 
