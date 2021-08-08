@@ -32,7 +32,7 @@ This tutorial series provides step-by-step instructions for how to perform human
 
 [Part 6](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-6/): This post covers how to implement the post processing steps for multi-pose estimation.
 
-[Part 7](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-7/): This post covers how to poses skeletons and manipulate them using output from the model.
+[Part 7](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-7/): This post covers how to create pose skeletons and manipulate them using output from the model.
 
 
 
