@@ -2,7 +2,7 @@
 
 The Unity project in this branch uses Barracuda version [2.3.1](https://docs.unity3d.com/Packages/com.unity.barracuda@2.3/changelog/CHANGELOG.html).  No code changes have been made so far.
 
-Version 2.3.1 contains some improvements over version 2.1.0 used in the main branch that may be especially relevant for non-Windows platforms.
+Version 2.3.1 contains some improvements over version 2.1.0 used in the main branch that may be especially relevant when building for non-Windows platforms.
 
 It has support for creating a tensor from a RenderTexture even when compute shaders or GPUs are not available.
 
