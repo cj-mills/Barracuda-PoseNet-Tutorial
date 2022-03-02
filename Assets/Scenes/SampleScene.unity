@@ -258,14 +258,15 @@ MonoBehaviour:
   imageDims: {x: 256, y: 320}
   mobileNetModelAsset: {fileID: 5022602860645237092, guid: a36a65fea3d8bd64fba1711d6ac95b2b, type: 3}
   resnetModelAsset: {fileID: 5022602860645237092, guid: 5018f1c235dafc049a67b035f7ecb179, type: 3}
-  workerType: 512
+  workerType: 259
   estimationType: 0
   maxPoses: 20
   scoreThreshold: 0.25
   nmsRadius: 100
   pointScale: 10
   lineWidth: 5
-  minConfidence: 70
+  minConfidence: 50
+  preprocessMaterial: {fileID: 2100000, guid: 2c1b743514271584bb40d472ab275157, type: 2}
 --- !u!4 &202568504
 Transform:
   m_ObjectHideFlags: 0
