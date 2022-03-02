@@ -75,6 +75,8 @@ public class PoseEstimator : MonoBehaviour
     [Range(0, 100)]
     public int minConfidence = 70;
 
+    public Material preprocessMaterial;
+
     // Live video input from a webcam
     private WebCamTexture webcamTexture;
 
@@ -291,70 +293,20 @@ public class PoseEstimator : MonoBehaviour
     }
 
     /// <summary>
-    /// Process the provided image using the specified function on the GPU
-    /// </summary>
-    /// <param name="image"></param>
-    /// <param name="functionName"></param>
-    /// <returns></returns>
-    private void ProcessImageGPU(RenderTexture image, string functionName)
-    {
-        // Specify the number of threads on the GPU
-        int numthreads = 8;
-        // Get the index for the specified function in the ComputeShader
-        int kernelHandle = posenetShader.FindKernel(functionName);
-        // Define a temporary HDR RenderTexture
-        RenderTexture result = RenderTexture.GetTemporary(image.width, image.height, 24, RenderTextureFormat.ARGBHalf);
-        // Enable random write access
-        result.enableRandomWrite = true;
-        // Create the HDR RenderTexture
-        result.Create();
-
-        // Set the value for the Result variable in the ComputeShader
-        posenetShader.SetTexture(kernelHandle, "Result", result);
-        // Set the value for the InputImage variable in the ComputeShader
-        posenetShader.SetTexture(kernelHandle, "InputImage", image);
-
-        // Execute the ComputeShader
-        posenetShader.Dispatch(kernelHandle, result.width / numthreads, result.height / numthreads, 1);
-
-        // Copy the result into the source RenderTexture
-        Graphics.Blit(result, image);
-
-        // Release the temporary RenderTexture
-        RenderTexture.ReleaseTemporary(result);
-    }
-
-    /// <summary>
     /// Calls the appropriate preprocessing function to prepare
     /// the input for the selected model and hardware
     /// </summary>
     /// <param name="image"></param>
     private void ProcessImage(RenderTexture image)
     {
-        if (useGPU)
-        {
-            // Apply preprocessing steps
-            ProcessImageGPU(image, preProcessFunction.Method.Name);
-            // Create a Tensor of shape [1, image.height, image.width, 3]
-            input = new Tensor(image, channels: 3);
-        }
-        else
-        {
-            // Create a Tensor of shape [1, image.height, image.width, 3]
-            input = new Tensor(image, channels: 3);
-            
-            // Download the tensor data to an array
-            float[] tensor_array = input.data.Download(input.shape);
+        // Define a temporary HDR RenderTexture
+        RenderTexture result = RenderTexture.GetTemporary(image.width, image.height, 24, RenderTextureFormat.ARGBHalf);
+        RenderTexture.active = result;
 
-            // Apply preprocessing steps
-            preProcessFunction(tensor_array);
-            // Update input tensor with new color data
-            input = new Tensor(input.shape.batch,
-                               input.shape.height,
-                               input.shape.width,
-                               input.shape.channels,
-                               tensor_array);            
-        }
+        Graphics.Blit(image, result, preprocessMaterial);
+        // Create a Tensor of shape [1, image.height, image.width, 3]
+        input = new Tensor(result, channels: 3);
+        RenderTexture.ReleaseTemporary(result);
     }
 
     /// <summary>
@@ -409,8 +361,6 @@ public class PoseEstimator : MonoBehaviour
         {
 
             videoWidth = currentWidth;
-
-            //Debug.Log("Here");
 
             // Update the videoDims.y
             videoDims.y = webcamTexture.height;
