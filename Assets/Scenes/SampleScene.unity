@@ -135,7 +135,6 @@ GameObject:
   - component: {fileID: 129124169}
   - component: {fileID: 129124168}
   - component: {fileID: 129124167}
-  - component: {fileID: 129124166}
   m_Layer: 0
   m_Name: VideoScreen
   m_TagString: Untagged
@@ -157,39 +156,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!328 &129124166
-VideoPlayer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 129124164}
-  m_Enabled: 1
-  m_VideoClip: {fileID: 32900000, guid: 41a6896ae714b8545b87adb3a6a6ca62, type: 3}
-  m_TargetCameraAlpha: 1
-  m_TargetCamera3DLayout: 0
-  m_TargetCamera: {fileID: 0}
-  m_TargetTexture: {fileID: 0}
-  m_TimeReference: 0
-  m_TargetMaterialRenderer: {fileID: 0}
-  m_TargetMaterialProperty: _MainTex
-  m_RenderMode: 3
-  m_AspectRatio: 2
-  m_DataSource: 0
-  m_PlaybackSpeed: 1
-  m_AudioOutputMode: 2
-  m_TargetAudioSources: []
-  m_DirectAudioVolumes: []
-  m_Url: 
-  m_EnabledAudioTracks: 
-  m_DirectAudioMutes: 
-  m_ControlledAudioTrackCount: 0
-  m_PlayOnAwake: 1
-  m_SkipOnDrop: 1
-  m_Looping: 1
-  m_WaitForFirstFrame: 1
-  m_FrameReadyEventEnabled: 0
-  m_VideoShaders: []
 --- !u!64 &129124167
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -288,11 +254,11 @@ MonoBehaviour:
   videoScreen: {fileID: 129124165}
   posenetShader: {fileID: 7200000, guid: 979d9606662c8e141bda4c02aed10a20, type: 3}
   modelType: 0
-  useGPU: 1
+  useGPU: 0
   imageDims: {x: 256, y: 320}
   mobileNetModelAsset: {fileID: 5022602860645237092, guid: a36a65fea3d8bd64fba1711d6ac95b2b, type: 3}
   resnetModelAsset: {fileID: 5022602860645237092, guid: 5018f1c235dafc049a67b035f7ecb179, type: 3}
-  workerType: 32768
+  workerType: 512
   estimationType: 0
   maxPoses: 20
   scoreThreshold: 0.25
