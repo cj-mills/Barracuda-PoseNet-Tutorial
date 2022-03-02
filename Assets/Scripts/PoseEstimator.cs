@@ -218,6 +218,9 @@ public class PoseEstimator : MonoBehaviour
         heatmapLayer = m_RunTimeModel.outputs[0];
         offsetsLayer = m_RunTimeModel.outputs[1];
 
+        // Set the channel order of the compute backend to channel-first
+        ComputeInfo.channelsOrder = ComputeInfo.ChannelsOrder.NCHW;
+
         // Create a model builder to modify the m_RunTimeModel
         ModelBuilder modelBuilder = new ModelBuilder(m_RunTimeModel);
 
