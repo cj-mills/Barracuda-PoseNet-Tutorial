@@ -25,7 +25,7 @@ public class PoseEstimator : MonoBehaviour
     public int webcamFPS = 60;
 
     [Tooltip("Use webcam feed as input")]
-    public bool useWebcam = false;
+    public bool useWebcam = true;
 
     [Tooltip("The screen for viewing preprocessed images")]
     public Transform videoScreen;
@@ -99,6 +99,10 @@ public class PoseEstimator : MonoBehaviour
     // Stores the input data for the model
     private Tensor input;
 
+    private int videoWidth = 0;
+
+    private Texture2D tex2D;
+
     /// <summary>
     /// Keeps track of the current inference backend, model execution interface, 
     /// and model type
@@ -150,12 +154,6 @@ public class PoseEstimator : MonoBehaviour
     /// <param name="mirrorScreen"></param>
     private void InitializeVideoScreen(int width, int height, bool mirrorScreen)
     {
-        // Set the render mode for the video player
-        videoScreen.GetComponent<VideoPlayer>().renderMode = VideoRenderMode.RenderTexture;
-
-        // Use new videoTexture for Video Player
-        videoScreen.GetComponent<VideoPlayer>().targetTexture = videoTexture;
-
         if (mirrorScreen)
         {
             // Flip the VideoScreen around the Y-Axis
@@ -252,29 +250,21 @@ public class PoseEstimator : MonoBehaviour
         if (useWebcam)
         {
             // Limit application framerate to the target webcam framerate
-            Application.targetFrameRate = webcamFPS;
+            Application.targetFrameRate = -1;
 
             // Create a new WebCamTexture
-            webcamTexture = new WebCamTexture(webcamDims.x, webcamDims.y, webcamFPS);
+            webcamTexture = new WebCamTexture(webcamDims.x, webcamDims.y);
 
             // Start the Camera
             webcamTexture.Play();
-
-            // Deactivate the Video Player
-            videoScreen.GetComponent<VideoPlayer>().enabled = false;
+            videoWidth = webcamTexture.width;
 
             // Update the videoDims.y
             videoDims.y = webcamTexture.height;
             // Update the videoDims.x
             videoDims.x = webcamTexture.width;
         }
-        else
-        {
-            // Update the videoDims.y
-            videoDims.y = (int)videoScreen.GetComponent<VideoPlayer>().height;
-            // Update the videoDims.x
-            videoDims.x = (int)videoScreen.GetComponent<VideoPlayer>().width;
-        }
+        
 
         // Create a new videoTexture using the current video dimensions
         videoTexture = RenderTexture.GetTemporary(videoDims.x, videoDims.y, 24, RenderTextureFormat.ARGBHalf);
@@ -352,8 +342,10 @@ public class PoseEstimator : MonoBehaviour
         {
             // Create a Tensor of shape [1, image.height, image.width, 3]
             input = new Tensor(image, channels: 3);
+            
             // Download the tensor data to an array
             float[] tensor_array = input.data.Download(input.shape);
+
             // Apply preprocessing steps
             preProcessFunction(tensor_array);
             // Update input tensor with new color data
@@ -361,7 +353,7 @@ public class PoseEstimator : MonoBehaviour
                                input.shape.height,
                                input.shape.width,
                                input.shape.channels,
-                               tensor_array);
+                               tensor_array);            
         }
     }
 
@@ -411,6 +403,40 @@ public class PoseEstimator : MonoBehaviour
     void Update()
     {
         // Copy webcamTexture to videoTexture if using webcam
+        int currentWidth = webcamTexture.width;
+        if (currentWidth <= 16) return;
+        if (currentWidth != videoWidth)
+        {
+
+            videoWidth = currentWidth;
+
+            //Debug.Log("Here");
+
+            // Update the videoDims.y
+            videoDims.y = webcamTexture.height;
+            // Update the videoDims.x
+            videoDims.x = webcamTexture.width;
+
+            RenderTexture.ReleaseTemporary(videoTexture);
+            // Create a new videoTexture using the current video dimensions
+            videoTexture = RenderTexture.GetTemporary(videoDims.x, videoDims.y, 24, RenderTextureFormat.ARGBHalf);
+
+            // Initialize the videoScreen
+            InitializeVideoScreen(videoDims.x, videoDims.y, useWebcam);
+
+            // Adjust the camera based on the source video dimensions
+            InitializeCamera();
+
+            // Adjust the input dimensions to maintain the source aspect ratio
+            aspectRatioScale = (float)videoTexture.width / videoTexture.height;
+            targetDims.x = (int)(imageDims.y * aspectRatioScale);
+            imageDims.x = targetDims.x;
+
+            RenderTexture.ReleaseTemporary(rTex);
+            // Initialize the RenderTexture that will store the processed input image
+            rTex = RenderTexture.GetTemporary(imageDims.x, imageDims.y, 24, RenderTextureFormat.ARGBHalf);
+        }
+
         if (useWebcam) Graphics.Blit(webcamTexture, videoTexture);
 
         // Prevent the input dimensions from going too low for the model
@@ -496,6 +522,8 @@ public class PoseEstimator : MonoBehaviour
                 skeletons[i].ToggleSkeleton(false);
             }
         }
+
+        Resources.UnloadUnusedAssets();
     }
 
     // OnDisable is called when the MonoBehavior becomes disabled or inactive
