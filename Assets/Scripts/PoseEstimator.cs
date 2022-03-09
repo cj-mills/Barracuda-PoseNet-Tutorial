@@ -1,22 +1,29 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Video;
 using Unity.Barracuda;
+using System;
+using UnityEngine.UI;
 
 public class PoseEstimator : MonoBehaviour
 {
-    public enum ModelType
-    {
-        MobileNet,
-        ResNet50
-    }
 
     public enum EstimationType
     {
         MultiPose,
         SinglePose
     }
+
+    
+    public TMPro.TMP_InputField inputWidthField;
+    public TMPro.TMP_InputField inputHeightField;
+
+    public TMPro.TMP_InputField nmsField;
+
+    [Tooltip("Switch between the available models")]
+    public TMPro.TMP_Dropdown modelDropdown;
+
+    public Slider confidenceSlider;
 
     [Tooltip("The requested webcam dimensions")]
     public Vector2Int webcamDims = new Vector2Int(1280, 720);
@@ -33,20 +40,24 @@ public class PoseEstimator : MonoBehaviour
     [Tooltip("The ComputeShader that will perform the model-specific preprocessing")]
     public ComputeShader posenetShader;
 
-    [Tooltip("The model architecture used")]
-    public ModelType modelType = ModelType.ResNet50;
-
-    [Tooltip("Use GPU for preprocessing")]
-    public bool useGPU = true;
-
+    
     [Tooltip("The dimensions of the image being fed to the model")]
     public Vector2Int imageDims = new Vector2Int(256, 256);
 
-    [Tooltip("The MobileNet model asset file to use when performing inference")]
-    public NNModel mobileNetModelAsset;
 
-    [Tooltip("The ResNet50 model asset file to use when performing inference")]
-    public NNModel resnetModelAsset;
+    /// <summary>
+    /// 
+    /// </summary>
+    [ListToPopup(typeof(PoseEstimator), "modelList")]
+    public string Models = "";
+
+    /// <summary>
+    /// Stores a list of available onnx models
+    /// </summary>
+    public static List<string> modelList = new List<string>();
+
+    [Tooltip("")]
+    public List<PoseNetModel> poseNetModels;
 
     [Tooltip("The backend to use when performing inference")]
     public WorkerFactory.Type workerType = WorkerFactory.Type.Auto;
@@ -75,7 +86,6 @@ public class PoseEstimator : MonoBehaviour
     [Range(0, 100)]
     public int minConfidence = 70;
 
-    public Material preprocessMaterial;
 
     // Live video input from a webcam
     private WebCamTexture webcamTexture;
@@ -95,15 +105,12 @@ public class PoseEstimator : MonoBehaviour
     // The texture used to create input tensor
     private RenderTexture rTex;
 
-    // The preprocessing function for the current model type
-    private System.Action<float[]> preProcessFunction;
-
     // Stores the input data for the model
     private Tensor input;
 
     private int videoWidth = 0;
 
-    private Texture2D tex2D;
+    private PoseNetModel currentModel;
 
     /// <summary>
     /// Keeps track of the current inference backend, model execution interface, 
@@ -113,13 +120,11 @@ public class PoseEstimator : MonoBehaviour
     {
         public WorkerFactory.Type workerType;
         public IWorker worker;
-        public ModelType modelType;
-
-        public Engine(WorkerFactory.Type workerType, Model model, ModelType modelType)
+        
+        public Engine(WorkerFactory.Type workerType, Model model)
         {
             this.workerType = workerType;
             worker = WorkerFactory.CreateWorker(workerType, model);
-            this.modelType = modelType;
         }
     }
 
@@ -146,6 +151,36 @@ public class PoseEstimator : MonoBehaviour
 
     // Array of pose skeletons
     private PoseSkeleton[] skeletons;
+
+
+    public void InitializeWebcam()
+    {
+        // Create a new WebCamTexture
+        webcamTexture = new WebCamTexture(webcamDims.x, webcamDims.y);
+
+        // Start the Camera
+        webcamTexture.Play();
+        videoWidth = webcamTexture.width;
+
+        // Update the videoDims.y
+        videoDims.y = webcamTexture.height;
+        // Update the videoDims.x
+        videoDims.x = webcamTexture.width;
+    }
+
+
+    private void InitializeUI()
+    {
+        nmsField.SetTextWithoutNotify($"{nmsRadius}");
+
+        modelDropdown.ClearOptions();
+        // Add OpenVINO compute devices to dropdown
+        modelDropdown.AddOptions(modelList);
+        // Set the value for the dropdown to the current compute device
+        modelDropdown.SetValueWithoutNotify(modelList.IndexOf(currentModel.modelAsset.name));
+
+        confidenceSlider.SetValueWithoutNotify(minConfidence);
+    }
 
 
     /// <summary>
@@ -198,25 +233,15 @@ public class PoseEstimator : MonoBehaviour
         // The compiled model used for performing inference
         Model m_RunTimeModel;
 
-        if (modelType == ModelType.MobileNet)
-        {
-            preProcessFunction = Utils.PreprocessMobileNet;
-            // Compile the model asset into an object oriented representation
-            m_RunTimeModel = ModelLoader.Load(mobileNetModelAsset);
-            displacementFWDLayer = m_RunTimeModel.outputs[2];
-            displacementBWDLayer = m_RunTimeModel.outputs[3];
-        }
-        else
-        {
-            preProcessFunction = Utils.PreprocessResNet;
-            // Compile the model asset into an object oriented representation
-            m_RunTimeModel = ModelLoader.Load(resnetModelAsset);
-            displacementFWDLayer = m_RunTimeModel.outputs[3];
-            displacementBWDLayer = m_RunTimeModel.outputs[2];
-        }
+        // Compile the model asset into an object oriented representation
+        m_RunTimeModel = ModelLoader.Load(currentModel.modelAsset);
 
-        heatmapLayer = m_RunTimeModel.outputs[0];
-        offsetsLayer = m_RunTimeModel.outputs[1];
+        // Get output layer names
+        heatmapLayer = m_RunTimeModel.outputs[currentModel.heatmapLayerIndex];
+        offsetsLayer = m_RunTimeModel.outputs[currentModel.offsetsLayerIndex];
+        displacementFWDLayer = m_RunTimeModel.outputs[currentModel.displacementFWDLayerIndex];
+        displacementBWDLayer = m_RunTimeModel.outputs[currentModel.displacementBWDLayerIndex];
+                
 
         // Set the channel order of the compute backend to channel-first
         ComputeInfo.channelsOrder = ComputeInfo.ChannelsOrder.NCHW;
@@ -231,7 +256,7 @@ public class PoseEstimator : MonoBehaviour
         workerType = WorkerFactory.ValidateType(workerType);
 
         // Create a worker that will execute the model with the selected backend
-        engine = new Engine(workerType, modelBuilder.model, modelType);
+        engine = new Engine(workerType, modelBuilder.model);
     }
 
     
@@ -249,27 +274,57 @@ public class PoseEstimator : MonoBehaviour
     }
 
 
+
+    private void InitializeTextures()
+    {
+        // Prevent the input dimensions from going too low for the model
+        imageDims.x = Mathf.Max(imageDims.x, 64);
+        imageDims.y = Mathf.Max(imageDims.y, 64);
+
+        // Update the input dimensions while maintaining the source aspect ratio
+        if (imageDims.x != targetDims.x)
+        {
+            aspectRatioScale = (float)videoTexture.height / videoTexture.width;
+            targetDims.y = (int)(imageDims.x * aspectRatioScale);
+            imageDims.y = targetDims.y;
+            targetDims.x = imageDims.x;
+        }
+        if (imageDims.y != targetDims.y)
+        {
+            aspectRatioScale = (float)videoTexture.width / videoTexture.height;
+            targetDims.x = (int)(imageDims.y * aspectRatioScale);
+            imageDims.x = targetDims.x;
+            targetDims.y = imageDims.y;
+        }
+
+        // Update the rTex dimensions to the new input dimensions
+        if (imageDims.x != rTex.width || imageDims.y != rTex.height)
+        {
+            RenderTexture.ReleaseTemporary(rTex);
+            // Assign a temporary RenderTexture with the new dimensions
+            rTex = RenderTexture.GetTemporary(imageDims.x, imageDims.y, 24, rTex.format);
+        }
+
+        inputWidthField.SetTextWithoutNotify($"{rTex.width}");
+        inputHeightField.SetTextWithoutNotify($"{rTex.height}");
+    }
+
+
     // Start is called before the first frame update
     void Start()
     {
-        if (useWebcam)
-        {
-            // Limit application framerate to the target webcam framerate
-            Application.targetFrameRate = -1;
 
-            // Create a new WebCamTexture
-            webcamTexture = new WebCamTexture(webcamDims.x, webcamDims.y);
+        // Get the names of the model assets
+        foreach (PoseNetModel model in poseNetModels) modelList.Add(model.name);
 
-            // Start the Camera
-            webcamTexture.Play();
-            videoWidth = webcamTexture.width;
+        currentModel = poseNetModels[modelList.IndexOf(Models)];
 
-            // Update the videoDims.y
-            videoDims.y = webcamTexture.height;
-            // Update the videoDims.x
-            videoDims.x = webcamTexture.width;
-        }
-        
+        InitializeUI();
+
+
+
+        if (useWebcam) InitializeWebcam();
+
 
         // Create a new videoTexture using the current video dimensions
         videoTexture = RenderTexture.GetTemporary(videoDims.x, videoDims.y, 24, RenderTextureFormat.ARGBHalf);
@@ -293,6 +348,8 @@ public class PoseEstimator : MonoBehaviour
 
         // Initialize pose skeletons
         InitializeSkeletons();
+
+        InitializeTextures();
     }
 
     /// <summary>
@@ -306,7 +363,7 @@ public class PoseEstimator : MonoBehaviour
         RenderTexture result = RenderTexture.GetTemporary(image.width, image.height, 24, RenderTextureFormat.ARGBHalf);
         RenderTexture.active = result;
 
-        Graphics.Blit(image, result, preprocessMaterial);
+        Graphics.Blit(image, result, currentModel.preprocessingMaterial);
         // Create a Tensor of shape [1, image.height, image.width, 3]
         input = new Tensor(result, channels: 3);
         RenderTexture.ReleaseTemporary(result);
@@ -392,34 +449,6 @@ public class PoseEstimator : MonoBehaviour
 
         if (useWebcam) Graphics.Blit(webcamTexture, videoTexture);
 
-        // Prevent the input dimensions from going too low for the model
-        imageDims.x = Mathf.Max(imageDims.x, 64);
-        imageDims.y = Mathf.Max(imageDims.y, 64);
-
-        // Update the input dimensions while maintaining the source aspect ratio
-        if (imageDims.x != targetDims.x)
-        {
-            aspectRatioScale = (float)videoTexture.height / videoTexture.width;
-            targetDims.y = (int)(imageDims.x * aspectRatioScale);
-            imageDims.y = targetDims.y;
-            targetDims.x = imageDims.x;
-        }
-        if (imageDims.y != targetDims.y)
-        {
-            aspectRatioScale = (float)videoTexture.width / videoTexture.height;
-            targetDims.x = (int)(imageDims.y * aspectRatioScale);
-            imageDims.x = targetDims.x;
-            targetDims.y = imageDims.y;
-        }
-
-        // Update the rTex dimensions to the new input dimensions
-        if (imageDims.x != rTex.width || imageDims.y != rTex.height)
-        {
-            RenderTexture.ReleaseTemporary(rTex);
-            // Assign a temporary RenderTexture with the new dimensions
-            rTex = RenderTexture.GetTemporary(imageDims.x, imageDims.y, 24, rTex.format);
-        }
-
         // Copy the src RenderTexture to the new rTex RenderTexture
         Graphics.Blit(videoTexture, rTex);
 
@@ -427,7 +456,7 @@ public class PoseEstimator : MonoBehaviour
         ProcessImage(rTex);
 
         // Reinitialize Barracuda with the selected model and backend 
-        if (engine.modelType != modelType || engine.workerType != workerType)
+        if (engine.workerType != workerType)
         {
             engine.worker.Dispose();
             InitializeBarracuda();
@@ -484,5 +513,29 @@ public class PoseEstimator : MonoBehaviour
     {
         // Release the resources allocated for the inference engine
         engine.worker.Dispose();
+    }
+
+    public void OnUserInput()
+    {
+        if (!Application.isPlaying) return;
+        currentModel = poseNetModels[modelDropdown.value];
+        Models = modelList[modelDropdown.value];
+
+        // Reinitialize Barracuda with the selected model and backend
+        engine.worker.Dispose();
+        InitializeBarracuda();
+
+        Int32.TryParse(nmsField.text, out int nmsFieldValue);
+        nmsRadius = nmsFieldValue;
+
+        Int32.TryParse(inputWidthField.text, out int widthFieldValue);
+        imageDims.x = widthFieldValue;
+
+        Int32.TryParse(inputHeightField.text, out int heightFieldValue);
+        imageDims.y = heightFieldValue;
+
+        minConfidence = (int)confidenceSlider.value;
+
+        InitializeTextures();
     }
 }
