@@ -31,9 +31,6 @@ public class PoseEstimator : MonoBehaviour
     [Tooltip("The requested webcam frame rate")]
     public int webcamFPS = 60;
 
-    [Tooltip("Use webcam feed as input")]
-    public bool useWebcam = true;
-
     [Tooltip("The screen for viewing preprocessed images")]
     public Transform videoScreen;
 
@@ -281,14 +278,7 @@ public class PoseEstimator : MonoBehaviour
         imageDims.x = Mathf.Max(imageDims.x, 64);
         imageDims.y = Mathf.Max(imageDims.y, 64);
 
-        // Update the input dimensions while maintaining the source aspect ratio
-        if (imageDims.x != targetDims.x)
-        {
-            aspectRatioScale = (float)videoTexture.height / videoTexture.width;
-            targetDims.y = (int)(imageDims.x * aspectRatioScale);
-            imageDims.y = targetDims.y;
-            targetDims.x = imageDims.x;
-        }
+
         if (imageDims.y != targetDims.y)
         {
             aspectRatioScale = (float)videoTexture.width / videoTexture.height;
@@ -297,13 +287,18 @@ public class PoseEstimator : MonoBehaviour
             targetDims.y = imageDims.y;
         }
 
-        // Update the rTex dimensions to the new input dimensions
-        if (imageDims.x != rTex.width || imageDims.y != rTex.height)
+        // Update the input dimensions while maintaining the source aspect ratio
+        if (imageDims.x != targetDims.x)
         {
-            RenderTexture.ReleaseTemporary(rTex);
-            // Assign a temporary RenderTexture with the new dimensions
-            rTex = RenderTexture.GetTemporary(imageDims.x, imageDims.y, 24, rTex.format);
+            aspectRatioScale = (float)videoTexture.height / videoTexture.width;
+            targetDims.y = (int)(imageDims.x * aspectRatioScale);
+            imageDims.y = targetDims.y;
+            targetDims.x = imageDims.x;
         }
+
+        if (rTex) RenderTexture.ReleaseTemporary(rTex);
+
+        rTex = RenderTexture.GetTemporary(imageDims.x, imageDims.y, 24, RenderTextureFormat.ARGBHalf);
 
         inputWidthField.SetTextWithoutNotify($"{rTex.width}");
         inputHeightField.SetTextWithoutNotify($"{rTex.height}");
@@ -319,29 +314,17 @@ public class PoseEstimator : MonoBehaviour
 
         currentModel = poseNetModels[modelList.IndexOf(Models)];
 
+        // 
         InitializeUI();
 
-
-
-        if (useWebcam) InitializeWebcam();
-
+        // 
+        InitializeWebcam();
 
         // Create a new videoTexture using the current video dimensions
         videoTexture = RenderTexture.GetTemporary(videoDims.x, videoDims.y, 24, RenderTextureFormat.ARGBHalf);
 
         // Initialize the videoScreen
-        InitializeVideoScreen(videoDims.x, videoDims.y, useWebcam);
-
-        // Adjust the camera based on the source video dimensions
-        InitializeCamera();
-
-        // Adjust the input dimensions to maintain the source aspect ratio
-        aspectRatioScale = (float)videoTexture.width / videoTexture.height;
-        targetDims.x = (int)(imageDims.y * aspectRatioScale);
-        imageDims.x = targetDims.x;
-
-        // Initialize the RenderTexture that will store the processed input image
-        rTex = RenderTexture.GetTemporary(imageDims.x, imageDims.y, 24, RenderTextureFormat.ARGBHalf);
+        InitializeVideoScreen(videoDims.x, videoDims.y, true);
 
         // Initialize the Barracuda inference engine based on the selected model
         InitializeBarracuda();
@@ -349,7 +332,12 @@ public class PoseEstimator : MonoBehaviour
         // Initialize pose skeletons
         InitializeSkeletons();
 
+        // 
+        if (webcamTexture.width <= 16) return;
+        // 
         InitializeTextures();
+        // Adjust the camera based on the source video dimensions
+        InitializeCamera();        
     }
 
     /// <summary>
@@ -416,10 +404,10 @@ public class PoseEstimator : MonoBehaviour
     {
         // Copy webcamTexture to videoTexture if using webcam
         int currentWidth = webcamTexture.width;
-        if (currentWidth <= 16) return;
+        // 
+        if (webcamTexture.width <= 16) return;
         if (currentWidth != videoWidth)
         {
-
             videoWidth = currentWidth;
 
             // Update the videoDims.y
@@ -432,35 +420,21 @@ public class PoseEstimator : MonoBehaviour
             videoTexture = RenderTexture.GetTemporary(videoDims.x, videoDims.y, 24, RenderTextureFormat.ARGBHalf);
 
             // Initialize the videoScreen
-            InitializeVideoScreen(videoDims.x, videoDims.y, useWebcam);
+            InitializeVideoScreen(videoDims.x, videoDims.y, true);
 
             // Adjust the camera based on the source video dimensions
             InitializeCamera();
-
-            // Adjust the input dimensions to maintain the source aspect ratio
-            aspectRatioScale = (float)videoTexture.width / videoTexture.height;
-            targetDims.x = (int)(imageDims.y * aspectRatioScale);
-            imageDims.x = targetDims.x;
-
-            RenderTexture.ReleaseTemporary(rTex);
-            // Initialize the RenderTexture that will store the processed input image
-            rTex = RenderTexture.GetTemporary(imageDims.x, imageDims.y, 24, RenderTextureFormat.ARGBHalf);
+            // 
+            InitializeTextures();
         }
 
-        if (useWebcam) Graphics.Blit(webcamTexture, videoTexture);
+        Graphics.Blit(webcamTexture, videoTexture);
 
         // Copy the src RenderTexture to the new rTex RenderTexture
         Graphics.Blit(videoTexture, rTex);
 
         // Prepare the input image to be fed to the selected model
         ProcessImage(rTex);
-
-        // Reinitialize Barracuda with the selected model and backend 
-        if (engine.workerType != workerType)
-        {
-            engine.worker.Dispose();
-            InitializeBarracuda();
-        }
 
         // Execute neural network with the provided input
         engine.worker.Execute(input);
@@ -496,7 +470,7 @@ public class PoseEstimator : MonoBehaviour
                 skeletons[i].ToggleSkeleton(true);
 
                 // Update the positions for the key point GameObjects
-                skeletons[i].UpdateKeyPointPositions(poses[i], scale, videoTexture, useWebcam, minConfidence);
+                skeletons[i].UpdateKeyPointPositions(poses[i], scale, videoTexture, true, minConfidence);
                 skeletons[i].UpdateLines();
             }
             else
