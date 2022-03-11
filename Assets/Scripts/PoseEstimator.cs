@@ -7,14 +7,12 @@ using UnityEngine.UI;
 
 public class PoseEstimator : MonoBehaviour
 {
-
     public enum EstimationType
     {
         MultiPose,
         SinglePose
     }
-
-    
+        
     public TMPro.TMP_InputField inputWidthField;
     public TMPro.TMP_InputField inputHeightField;
 
@@ -22,8 +20,6 @@ public class PoseEstimator : MonoBehaviour
 
     [Tooltip("Switch between the available models")]
     public TMPro.TMP_Dropdown modelDropdown;
-
-    public Slider confidenceSlider;
 
     [Tooltip("The requested webcam dimensions")]
     public Vector2Int webcamDims = new Vector2Int(1280, 720);
@@ -37,14 +33,9 @@ public class PoseEstimator : MonoBehaviour
     [Tooltip("The ComputeShader that will perform the model-specific preprocessing")]
     public ComputeShader posenetShader;
 
-    
     [Tooltip("The dimensions of the image being fed to the model")]
     public Vector2Int imageDims = new Vector2Int(256, 256);
 
-
-    /// <summary>
-    /// 
-    /// </summary>
     [ListToPopup(typeof(PoseEstimator), "modelList")]
     public string Models = "";
 
@@ -87,9 +78,6 @@ public class PoseEstimator : MonoBehaviour
     // Live video input from a webcam
     private WebCamTexture webcamTexture;
 
-    // The dimensions of the current video source
-    private Vector2Int videoDims;
-
     // The source video texture
     private RenderTexture videoTexture;
 
@@ -105,28 +93,8 @@ public class PoseEstimator : MonoBehaviour
     // Stores the input data for the model
     private Tensor input;
 
-    private int videoWidth = 0;
-
-    private PoseNetModel currentModel;
-
-    /// <summary>
-    /// Keeps track of the current inference backend, model execution interface, 
-    /// and model type
-    /// </summary>
-    private struct Engine
-    {
-        public WorkerFactory.Type workerType;
-        public IWorker worker;
-        
-        public Engine(WorkerFactory.Type workerType, Model model)
-        {
-            this.workerType = workerType;
-            worker = WorkerFactory.CreateWorker(workerType, model);
-        }
-    }
-
     // The interface used to execute the neural network
-    private Engine engine;
+    private IWorker engine;
 
     // The name for the heatmap layer in the model asset
     private string heatmapLayer;
@@ -149,6 +117,9 @@ public class PoseEstimator : MonoBehaviour
     // Array of pose skeletons
     private PoseSkeleton[] skeletons;
 
+    // Stores the PoseNetModel currently in use
+    private PoseNetModel currentModel;
+
 
     public void InitializeWebcam()
     {
@@ -157,12 +128,6 @@ public class PoseEstimator : MonoBehaviour
 
         // Start the Camera
         webcamTexture.Play();
-        videoWidth = webcamTexture.width;
-
-        // Update the videoDims.y
-        videoDims.y = webcamTexture.height;
-        // Update the videoDims.x
-        videoDims.x = webcamTexture.width;
     }
 
 
@@ -175,8 +140,6 @@ public class PoseEstimator : MonoBehaviour
         modelDropdown.AddOptions(modelList);
         // Set the value for the dropdown to the current compute device
         modelDropdown.SetValueWithoutNotify(modelList.IndexOf(currentModel.modelAsset.name));
-
-        confidenceSlider.SetValueWithoutNotify(minConfidence);
     }
 
 
@@ -188,6 +151,11 @@ public class PoseEstimator : MonoBehaviour
     /// <param name="mirrorScreen"></param>
     private void InitializeVideoScreen(int width, int height, bool mirrorScreen)
     {
+        // Release temporary RenderTexture
+        RenderTexture.ReleaseTemporary(videoTexture);
+        // Create a new videoTexture using the current video dimensions
+        videoTexture = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGBHalf);
+
         if (mirrorScreen)
         {
             // Flip the VideoScreen around the Y-Axis
@@ -213,17 +181,17 @@ public class PoseEstimator : MonoBehaviour
         // Get a reference to the Main Camera GameObject
         GameObject mainCamera = GameObject.Find("Main Camera");
         // Adjust the camera position to account for updates to the VideoScreen
-        mainCamera.transform.position = new Vector3(videoDims.x / 2, videoDims.y / 2, -10f);
+        mainCamera.transform.position = new Vector3(videoTexture.width / 2, videoTexture.height / 2, -10f);
         // Render objects with no perspective (i.e. 2D)
         mainCamera.GetComponent<Camera>().orthographic = true;
         // Adjust the camera size to account for updates to the VideoScreen
-        mainCamera.GetComponent<Camera>().orthographicSize = videoDims.y / 2;
+        mainCamera.GetComponent<Camera>().orthographicSize = videoTexture.height / 2;
     }
 
 
     /// <summary>
     /// Updates the output layer names based on the selected model architecture
-    /// and initializes the Barracuda inference engine witht the selected model.
+    /// and initializes the Barracuda inference engine with the selected model.
     /// </summary>
     private void InitializeBarracuda()
     {
@@ -238,10 +206,6 @@ public class PoseEstimator : MonoBehaviour
         offsetsLayer = m_RunTimeModel.outputs[currentModel.offsetsLayerIndex];
         displacementFWDLayer = m_RunTimeModel.outputs[currentModel.displacementFWDLayerIndex];
         displacementBWDLayer = m_RunTimeModel.outputs[currentModel.displacementBWDLayerIndex];
-                
-
-        // Set the channel order of the compute backend to channel-first
-        ComputeInfo.channelsOrder = ComputeInfo.ChannelsOrder.NCHW;
 
         // Create a model builder to modify the m_RunTimeModel
         ModelBuilder modelBuilder = new ModelBuilder(m_RunTimeModel);
@@ -253,10 +217,10 @@ public class PoseEstimator : MonoBehaviour
         workerType = WorkerFactory.ValidateType(workerType);
 
         // Create a worker that will execute the model with the selected backend
-        engine = new Engine(workerType, modelBuilder.model);
+        engine = WorkerFactory.CreateWorker(workerType, modelBuilder.model);
     }
 
-    
+
     /// <summary>
     /// Initialize pose skeletons
     /// </summary>
@@ -272,13 +236,16 @@ public class PoseEstimator : MonoBehaviour
 
 
 
-    private void InitializeTextures()
+    /// <summary>
+    /// Initialize the input dimensions for the model
+    /// </summary>
+    private void InitializeInputDims()
     {
         // Prevent the input dimensions from going too low for the model
         imageDims.x = Mathf.Max(imageDims.x, 64);
         imageDims.y = Mathf.Max(imageDims.y, 64);
 
-
+        // Update the input dimensions while maintaining the source aspect ratio
         if (imageDims.y != targetDims.y)
         {
             aspectRatioScale = (float)videoTexture.width / videoTexture.height;
@@ -287,7 +254,6 @@ public class PoseEstimator : MonoBehaviour
             targetDims.y = imageDims.y;
         }
 
-        // Update the input dimensions while maintaining the source aspect ratio
         if (imageDims.x != targetDims.x)
         {
             aspectRatioScale = (float)videoTexture.height / videoTexture.width;
@@ -296,53 +262,55 @@ public class PoseEstimator : MonoBehaviour
             targetDims.x = imageDims.x;
         }
 
-        if (rTex) RenderTexture.ReleaseTemporary(rTex);
-
+        RenderTexture.ReleaseTemporary(rTex);
+        // Assign a temporary RenderTexture with the new dimensions
         rTex = RenderTexture.GetTemporary(imageDims.x, imageDims.y, 24, RenderTextureFormat.ARGBHalf);
 
-        inputWidthField.SetTextWithoutNotify($"{rTex.width}");
-        inputHeightField.SetTextWithoutNotify($"{rTex.height}");
+        inputWidthField.text = $"{rTex.width}";
+        inputHeightField.text = $"{rTex.height}";
     }
 
 
-    // Start is called before the first frame update
-    void Start()
+    /// <summary>
+    /// Perform initialization steps
+    /// </summary>
+    private void InitializePoseEstimator()
     {
-
-        // Get the names of the model assets
-        foreach (PoseNetModel model in poseNetModels) modelList.Add(model.name);
-
-        currentModel = poseNetModels[modelList.IndexOf(Models)];
-
-        // 
-        InitializeUI();
-
-        // 
-        InitializeWebcam();
-
-        // Create a new videoTexture using the current video dimensions
-        videoTexture = RenderTexture.GetTemporary(videoDims.x, videoDims.y, 24, RenderTextureFormat.ARGBHalf);
-
-        // Initialize the videoScreen
-        InitializeVideoScreen(videoDims.x, videoDims.y, true);
-
         // Initialize the Barracuda inference engine based on the selected model
         InitializeBarracuda();
 
         // Initialize pose skeletons
         InitializeSkeletons();
 
-        // 
-        if (webcamTexture.width <= 16) return;
-        // 
-        InitializeTextures();
+        // Initialize the videoScreen
+        InitializeVideoScreen(webcamTexture.width, webcamTexture.height, true);
+
         // Adjust the camera based on the source video dimensions
-        InitializeCamera();        
+        InitializeCamera();
+
+        // Initialize input dimensions
+        InitializeInputDims();
+    }
+
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        // Initialize webcam
+        InitializeWebcam();
+
+        // Get the names of the model assets
+        foreach (PoseNetModel model in poseNetModels) modelList.Add(model.name);
+
+        currentModel = poseNetModels[modelList.IndexOf(Models)];
+
+        // Intialize GUI components
+        InitializeUI();
     }
 
     /// <summary>
     /// Calls the appropriate preprocessing function to prepare
-    /// the input for the selected model and hardware
+    /// the input for the selected model
     /// </summary>
     /// <param name="image"></param>
     private void ProcessImage(RenderTexture image)
@@ -351,8 +319,10 @@ public class PoseEstimator : MonoBehaviour
         RenderTexture result = RenderTexture.GetTemporary(image.width, image.height, 24, RenderTextureFormat.ARGBHalf);
         RenderTexture.active = result;
 
+        // Apply preprocessing steps
         Graphics.Blit(image, result, currentModel.preprocessingMaterial);
-        // Create a Tensor of shape [1, image.height, image.width, 3]
+
+        // Create a new Tensor
         input = new Tensor(result, channels: 3);
         RenderTexture.ReleaseTemporary(result);
     }
@@ -402,47 +372,28 @@ public class PoseEstimator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        // Copy webcamTexture to videoTexture if using webcam
-        int currentWidth = webcamTexture.width;
-        // 
+        // Skip the rest of the method if the webcam is not initialized
         if (webcamTexture.width <= 16) return;
-        if (currentWidth != videoWidth)
-        {
-            videoWidth = currentWidth;
 
-            // Update the videoDims.y
-            videoDims.y = webcamTexture.height;
-            // Update the videoDims.x
-            videoDims.x = webcamTexture.width;
+        // Only perform initialization steps if the videoTexture has not been initialized
+        if (!videoTexture) InitializePoseEstimator();
 
-            RenderTexture.ReleaseTemporary(videoTexture);
-            // Create a new videoTexture using the current video dimensions
-            videoTexture = RenderTexture.GetTemporary(videoDims.x, videoDims.y, 24, RenderTextureFormat.ARGBHalf);
-
-            // Initialize the videoScreen
-            InitializeVideoScreen(videoDims.x, videoDims.y, true);
-
-            // Adjust the camera based on the source video dimensions
-            InitializeCamera();
-            // 
-            InitializeTextures();
-        }
-
+        // Copy webcamTexture to videoTexture
         Graphics.Blit(webcamTexture, videoTexture);
 
-        // Copy the src RenderTexture to the new rTex RenderTexture
+        // Copy the videoTexture data to rTex
         Graphics.Blit(videoTexture, rTex);
 
         // Prepare the input image to be fed to the selected model
         ProcessImage(rTex);
 
         // Execute neural network with the provided input
-        engine.worker.Execute(input);
+        engine.Execute(input);
         // Release GPU resources allocated for the Tensor
         input.Dispose();
 
         // Decode the keypoint coordinates from the model output
-        ProcessOutput(engine.worker);
+        ProcessOutput(engine);
 
         // Reinitialize pose skeletons
         if (maxPoses != skeletons.Length)
@@ -486,7 +437,7 @@ public class PoseEstimator : MonoBehaviour
     private void OnDisable()
     {
         // Release the resources allocated for the inference engine
-        engine.worker.Dispose();
+        engine.Dispose();
     }
 
     public void OnUserInput()
@@ -496,8 +447,7 @@ public class PoseEstimator : MonoBehaviour
         Models = modelList[modelDropdown.value];
 
         // Reinitialize Barracuda with the selected model and backend
-        engine.worker.Dispose();
-        InitializeBarracuda();
+        engine.Dispose();
 
         Int32.TryParse(nmsField.text, out int nmsFieldValue);
         nmsRadius = nmsFieldValue;
@@ -508,8 +458,7 @@ public class PoseEstimator : MonoBehaviour
         Int32.TryParse(inputHeightField.text, out int heightFieldValue);
         imageDims.y = heightFieldValue;
 
-        minConfidence = (int)confidenceSlider.value;
-
-        InitializeTextures();
+        // Perform initialization steps
+        InitializePoseEstimator();
     }
 }
