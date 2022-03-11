@@ -46,6 +46,7 @@ This tutorial series provides step-by-step instructions for how to perform human
 
 [Part 7](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-7/): This post covers how to create pose skeletons and manipulate them using output from the model.
 
+[WebGL](https://christianjmills.com/Barracuda-PoseNet-WebGL-Tutorial/): This post covers how to modify the Barracuda PoseNet project to run in the browser using WebGL.
 
 
 ### Version 1
