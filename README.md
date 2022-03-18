@@ -1,5 +1,13 @@
 # Barracuda PoseNet Tutorial 2nd Edition
 
+## Update - 3/10/22
+Added a new [branch](https://github.com/cj-mills/Barracuda-PoseNet-Tutorial/tree/WebGL) and [tutorial](https://christianjmills.com/Barracuda-PoseNet-WebGL-Tutorial/) for adapting the project to run in a browser using WebGL.
+
+You can try out a live demo at the link below.
+* [Barracuda PoseNet WebGL Demo](https://cj-mills.github.io/Barracuda-PoseNet-WebGL-Demo/)
+
+---
+
 ## Update - 12/7/21
 Added a new [branch](https://github.com/cj-mills/Barracuda-PoseNet-Tutorial/tree/barracuda-2.3.1) that uses Barracuda version [2.3.1](https://docs.unity3d.com/Packages/com.unity.barracuda@2.3/changelog/CHANGELOG.html).
 Version 2.3.1 contains some improvements over version 2.1.0 used in the main branch that may be especially relevant when building for non-Windows platforms.
