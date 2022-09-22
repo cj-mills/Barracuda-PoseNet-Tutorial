@@ -26,35 +26,33 @@ This tutorial series provides step-by-step instructions for how to perform human
 
 ### Single Pose Estimation
 
-![](https://github.com/cj-mills/christianjmills/raw/master/images/barracuda-posenet-tutorial-v2/part-7/single-pose-test.gif)
+https://user-images.githubusercontent.com/9126128/191867974-7ba156d7-40a7-4f0d-a509-ed4521fe4d0d.mp4
+
+
+
 
 ### Multi-Pose Estimation
 
-![](https://github.com/cj-mills/christianjmills/raw/master/images/barracuda-posenet-tutorial-v2/part-7/multi-pose-test.gif)
+https://user-images.githubusercontent.com/9126128/191868000-b07938e3-7bcd-415b-a6cf-b29b11860bdd.mp4
 
-### Demo Videos
-
-* [Single Pose Estimation](https://youtu.be/KQyJgXss9NA)
-
-* [Multi-Pose Estimation](https://youtu.be/F995ZadTZik)
 
 ## Tutorial Links
 
-[Part 1](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-1/): This post covers the process for installing the Barracuda package as well as importing the required video files and PoseNet models into the project.
+[Part 1](https://christianjmills.com/posts/barracuda-posenet-tutorial-v2/part-1/): This post covers the process for installing the Barracuda package as well as importing the required video files and PoseNet models into the project.
 
-[Part 2](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-2/): This post covers how to set up a video player and webcam in Unity. We'll be using the video player to check the accuracy of the PoseNet model.
+[Part 2](https://christianjmills.com/posts/barracuda-posenet-tutorial-v2/part-2/): This post covers how to set up a video player and webcam in Unity. We'll be using the video player to check the accuracy of the PoseNet model.
 
-[Part 3](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-3/): This post covers how to implement the preprocessing steps for the PoseNet models.
+[Part 3](https://christianjmills.com/posts/barracuda-posenet-tutorial-v2/part-3/): This post covers how to implement the preprocessing steps for the PoseNet models.
 
-[Part 4](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-4/): This post covers how to load, modify, and execute the PoseNet models.
+[Part 4](https://christianjmills.com/posts/barracuda-posenet-tutorial-v2/part-4/): This post covers how to load, modify, and execute the PoseNet models.
 
-[Part 5](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-5/): This post covers how to implement the post processing steps for single pose estimation.
+[Part 5](https://christianjmills.com/posts/barracuda-posenet-tutorial-v2/part-5/): This post covers how to implement the post processing steps for single pose estimation.
 
-[Part 6](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-6/): This post covers how to implement the post processing steps for multi-pose estimation.
+[Part 6](https://christianjmills.com/posts/barracuda-posenet-tutorial-v2/part-6/): This post covers how to implement the post processing steps for multi-pose estimation.
 
-[Part 7](https://christianjmills.com/Barracuda-PoseNet-Tutorial-V2-7/): This post covers how to create pose skeletons and manipulate them using output from the model.
+[Part 7](https://christianjmills.com/posts/barracuda-posenet-tutorial-v2/part-7/): This post covers how to create pose skeletons and manipulate them using output from the model.
 
-[WebGL](https://christianjmills.com/Barracuda-PoseNet-WebGL-Tutorial/): This post covers how to modify the Barracuda PoseNet project to run in the browser using WebGL.
+[WebGL](https://christianjmills.com/posts/barracuda-posenet-tutorial-v2/webgl/): This post covers how to modify the Barracuda PoseNet project to run in the browser using WebGL.
 
 
 ### Version 1
