@@ -80,10 +80,10 @@ public class Utils
         });
     }
 
-    ///// <summary>
-    ///// Applies the preprocessing steps for the ResNet50 model on the CPU
-    ///// </summary>
-    ///// <param name="tensor">Pixel data from the input tensor</param>
+    /// <summary>
+    /// Applies the preprocessing steps for the ResNet50 model on the CPU
+    /// </summary>
+    /// <param name="tensor">Pixel data from the input tensor</param>
     public static void PreprocessResNet(float[] tensor)
     {
         System.Threading.Tasks.Parallel.For(0, tensor.Length / 3, (int i) =>
