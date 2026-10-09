@@ -43,3 +43,17 @@ It also now has a Pixel Shader worker. This allows models to run on GPU without 
 
 [GitHub Repository](https://github.com/cj-mills/Barracuda-PoseNet-Tutorial/tree/Version-1)
 
+<!-- relocated-posts:start (projected by the relocate verb; never edit by hand) -->
+## Retired posts
+
+The posts that accompanied this repository were retired from [christianjmills.com](https://christianjmills.com) and now live here:
+
+- [Barracuda PoseNet Tutorial 2nd Edition Pt. 1](retired-post/barracuda-posenet-tutorial-v2/part-1/README.md) (2021-07-20)
+- [Barracuda PoseNet Tutorial 2nd Edition Pt. 2](retired-post/barracuda-posenet-tutorial-v2/part-2/README.md) (2021-07-20)
+- [Barracuda PoseNet Tutorial 2nd Edition Pt. 3](retired-post/barracuda-posenet-tutorial-v2/part-3/README.md) (2021-07-27)
+- [Barracuda PoseNet Tutorial 2nd Edition Pt. 4](retired-post/barracuda-posenet-tutorial-v2/part-4/README.md) (2021-07-28)
+- [Barracuda PoseNet Tutorial 2nd Edition Pt. 5](retired-post/barracuda-posenet-tutorial-v2/part-5/README.md) (2021-07-29)
+- [Barracuda PoseNet Tutorial 2nd Edition Pt. 6](retired-post/barracuda-posenet-tutorial-v2/part-6/README.md) (2021-07-30)
+- [Barracuda PoseNet Tutorial 2nd Edition Pt. 7](retired-post/barracuda-posenet-tutorial-v2/part-7/README.md) (2021-07-30)
+- [Barracuda PoseNet WebGL Tutorial](retired-post/barracuda-posenet-tutorial-v2/webgl/README.md) (2022-03-10)
+<!-- relocated-posts:end -->
